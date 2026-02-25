@@ -99,6 +99,24 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
     }
   };
 
+  const uploadPhoto = async (
+    imageUrl: string,
+    loc: { lat: number; lng: number },
+    date: Date | null,
+    colId: number | null = null,
+  ) => {
+    await createPhoto.mutateAsync({
+      imageUrl,
+      latitude: loc.lat,
+      longitude: loc.lng,
+      takenAt: date || new Date(),
+      collectionId: colId,
+    });
+    toast({ title: "Photo added!", description: "Your photo has been placed on the map." });
+    onUploaded?.(loc.lat, loc.lng, imageUrl);
+    setOpen(false);
+  };
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = e.target.files?.[0];
     if (!selected) return;
@@ -135,14 +153,21 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
         }
       }
 
+      const finalDate = date ?? new Date(selected.lastModified);
+
       if (lat && lng) {
         setLocation({ lat, lng });
+        setTakenAt(finalDate);
+        setIsExtracting(false);
+        // Auto-pin: GPS + date found — upload immediately, no confirmation needed
+        await uploadPhoto(resized, { lat, lng }, finalDate);
+        return;
       } else {
-        // No GPS — prompt for manual location instead of hard error
+        // No GPS — prompt for manual location
         setShowLocationInput(true);
       }
 
-      setTakenAt(date ?? new Date(selected.lastModified));
+      setTakenAt(finalDate);
     } catch (err) {
       console.error("Error reading EXIF:", err);
       setShowLocationInput(true);
@@ -202,22 +227,8 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
       });
       return;
     }
-
     try {
-      await createPhoto.mutateAsync({
-        imageUrl: base64Image,
-        latitude: location.lat,
-        longitude: location.lng,
-        takenAt: takenAt || new Date(),
-        collectionId: collectionId,
-      });
-
-      toast({
-        title: "Photo added!",
-        description: "Your photo has been placed on the map.",
-      });
-      onUploaded?.(location.lat, location.lng, base64Image);
-      setOpen(false);
+      await uploadPhoto(base64Image, location, takenAt, collectionId);
     } catch (err) {
       toast({
         title: "Upload failed",
