@@ -4,8 +4,6 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { usePhotos } from "@/hooks/use-photos";
-import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
-import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, MapPin, Navigation } from "lucide-react";
 import { format } from "date-fns";
@@ -74,6 +72,142 @@ const createClusterIcon = (cluster: any) => {
   });
 };
 
+const DISMISS_THRESHOLD = 80;
+
+interface FullScreenPhotoProps {
+  photo: PhotoResponse;
+  onClose: () => void;
+}
+
+function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [exiting, setExiting] = useState(false);
+
+  const dismiss = (toX = 0, toY = 120) => {
+    setExiting(true);
+    setOffset({ x: toX, y: toY });
+    setTimeout(onClose, 280);
+  };
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    setIsDragging(true);
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStartRef.current) return;
+    const dx = e.touches[0].clientX - touchStartRef.current.x;
+    const dy = e.touches[0].clientY - touchStartRef.current.y;
+    const x = Math.max(0, dx);
+    const y = Math.max(0, dy);
+    setOffset({ x, y });
+  };
+
+  const handleTouchEnd = () => {
+    setIsDragging(false);
+    if (offset.y >= DISMISS_THRESHOLD) {
+      dismiss(offset.x, window.innerHeight);
+    } else if (offset.x >= DISMISS_THRESHOLD) {
+      dismiss(window.innerWidth, offset.y);
+    } else {
+      setOffset({ x: 0, y: 0 });
+    }
+    touchStartRef.current = null;
+  };
+
+  const progress = Math.min(1, Math.max(offset.x, offset.y) / 200);
+  const opacity = exiting ? 0 : 1 - progress * 0.4;
+  const scale = 1 - progress * 0.04;
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black touch-none"
+      style={{
+        transform: `translate(${offset.x}px, ${offset.y}px) scale(${scale})`,
+        opacity,
+        transition: isDragging || exiting
+          ? exiting ? "transform 0.28s ease-out, opacity 0.28s ease-out" : "none"
+          : "transform 0.35s cubic-bezier(0.34,1.56,0.64,1), opacity 0.35s ease",
+        borderRadius: progress > 0.05 ? `${progress * 24}px` : "0px",
+        willChange: "transform, opacity",
+      }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      {/* Full-screen photo */}
+      <img
+        src={photo.imageUrl}
+        alt="Photo"
+        data-testid="photo-preview-image"
+        className="absolute inset-0 w-full h-full object-cover"
+        draggable={false}
+      />
+
+      {/* Top gradient + collection badge */}
+      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+      {photo.collection && (
+        <div className="absolute top-safe top-12 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
+          {photo.collection.name}
+        </div>
+      )}
+
+      {/* Swipe hint bar at top */}
+      <div className="absolute top-3 inset-x-0 flex justify-center pointer-events-none">
+        <div className="w-10 h-1 rounded-full bg-white/40" />
+      </div>
+
+      {/* Bottom gradient + metadata */}
+      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black via-black/75 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 p-5 pb-safe" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+        {/* Avatar + name + date */}
+        <div className="flex items-center gap-3 mb-3">
+          <Avatar className="w-11 h-11 border-2 border-white/30 shrink-0">
+            <AvatarImage src={photo.user?.profileImageUrl || undefined} />
+            <AvatarFallback className="bg-primary/30 text-white font-bold text-base">
+              {photo.user?.firstName?.[0] || "?"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0">
+            <div className="font-bold text-white text-lg leading-tight truncate">
+              {photo.user?.firstName
+                ? `${photo.user.firstName}${photo.user.lastName ? " " + photo.user.lastName : ""}`
+                : "Unknown"}
+            </div>
+            {photo.takenAt && (
+              <div className="flex items-center gap-1 text-white/70 text-sm mt-0.5">
+                <Calendar className="w-3.5 h-3.5 shrink-0" />
+                <span>{format(new Date(photo.takenAt), "MMMM d, yyyy")}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Location + directions */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5 text-white/50 text-xs">
+            <MapPin className="w-3.5 h-3.5 shrink-0" />
+            <span>{photo.locationName || `${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)}`}</span>
+          </div>
+          <a
+            href={`https://maps.apple.com/?ll=${photo.latitude},${photo.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="link-directions"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-white border border-white/20 active:bg-white/25 transition-colors"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <Navigation className="w-3.5 h-3.5" />
+            Directions
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 interface PhotoMapProps {
   flyToCoords?: [number, number] | null;
 }
@@ -132,82 +266,12 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
         </MarkerClusterGroup>
       </MapContainer>
 
-      {/* Photo Preview Drawer */}
-      <Drawer open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <DrawerContent className="bg-black border-white/10 text-foreground p-0 overflow-hidden max-h-[92dvh]">
-          <VisuallyHidden><DrawerTitle>Photo Preview</DrawerTitle></VisuallyHidden>
-          {selectedPhoto && (
-            <div className="relative w-full flex flex-col">
-              {/* Full-bleed photo */}
-              <div className="relative w-full bg-black" style={{ minHeight: "55dvh" }}>
-                <img
-                  src={selectedPhoto.imageUrl}
-                  alt="Photo"
-                  data-testid="photo-preview-image"
-                  className="w-full object-cover"
-                  style={{ maxHeight: "72dvh", minHeight: "55dvh", objectFit: "cover" }}
-                />
-
-                {/* Top gradient — space for drag handle + collection badge */}
-                <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
-
-                {/* Collection badge top-right */}
-                {selectedPhoto.collection && (
-                  <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
-                    {selectedPhoto.collection.name}
-                  </div>
-                )}
-
-                {/* Bottom gradient overlay with user info */}
-                <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
-
-                <div className="absolute inset-x-0 bottom-0 p-5 pb-4">
-                  {/* Name + avatar row */}
-                  <div className="flex items-center gap-3 mb-2">
-                    <Avatar className="w-11 h-11 border-2 border-white/30 shrink-0">
-                      <AvatarImage src={selectedPhoto.user?.profileImageUrl || undefined} />
-                      <AvatarFallback className="bg-primary/30 text-white font-bold text-base">
-                        {selectedPhoto.user?.firstName?.[0] || "?"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <div className="font-bold text-white text-lg leading-tight truncate">
-                        {selectedPhoto.user?.firstName
-                          ? `${selectedPhoto.user.firstName}${selectedPhoto.user.lastName ? " " + selectedPhoto.user.lastName : ""}`
-                          : "Unknown"}
-                      </div>
-                      {selectedPhoto.takenAt && (
-                        <div className="flex items-center gap-1 text-white/70 text-sm mt-0.5">
-                          <Calendar className="w-3.5 h-3.5 shrink-0" />
-                          <span>{format(new Date(selectedPhoto.takenAt), "MMMM d, yyyy")}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Location + directions row */}
-                  <div className="flex items-center justify-between mt-3">
-                    <div className="flex items-center gap-1.5 text-white/50 text-xs">
-                      <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span>{selectedPhoto.locationName || `${selectedPhoto.latitude.toFixed(4)}, ${selectedPhoto.longitude.toFixed(4)}`}</span>
-                    </div>
-                    <a
-                      href={`https://maps.apple.com/?ll=${selectedPhoto.latitude},${selectedPhoto.longitude}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      data-testid="link-directions"
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-white border border-white/20 hover:bg-white/25 transition-colors"
-                    >
-                      <Navigation className="w-3.5 h-3.5" />
-                      Directions
-                    </a>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </DrawerContent>
-      </Drawer>
+      {selectedPhoto && (
+        <FullScreenPhoto
+          photo={selectedPhoto}
+          onClose={() => setSelectedPhoto(null)}
+        />
+      )}
     </div>
   );
 }
