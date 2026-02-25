@@ -135,10 +135,10 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>{children}</DrawerTrigger>
 
-      <DrawerContent className="bg-card/95 backdrop-blur-2xl border-white/10 text-foreground max-h-[80vh]">
+      <DrawerContent className="bg-zinc-700 backdrop-blur-2xl border-zinc-600 text-white max-h-[80vh]">
         <DrawerHeader>
-          <DrawerTitle className="text-2xl font-display">Add to Map</DrawerTitle>
-          <DrawerDescription className="text-muted-foreground">
+          <DrawerTitle className="text-2xl font-display text-white">Add to Map</DrawerTitle>
+          <DrawerDescription className="text-zinc-300">
             Select one or more photos. GPS-tagged photos are pinned automatically.
           </DrawerDescription>
         </DrawerHeader>
@@ -149,13 +149,13 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
             <div
               data-testid="upload-drop-zone"
               onClick={() => fileInputRef.current?.click()}
-              className="border-2 border-dashed border-white/20 rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-white/5 hover:border-primary/50 transition-all group"
+              className="border-2 border-dashed border-zinc-500 rounded-2xl p-12 flex flex-col items-center justify-center cursor-pointer hover:bg-white/10 hover:border-primary/70 transition-all group"
             >
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
+              <div className="w-16 h-16 rounded-full bg-primary/30 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform">
                 <ImagePlus className="w-8 h-8 text-primary" />
               </div>
               <h3 className="text-lg font-semibold mb-1">Select Photos</h3>
-              <p className="text-sm text-muted-foreground text-center">
+              <p className="text-sm text-zinc-300 text-center">
                 Tap to choose one or more photos.<br />
                 GPS metadata is read automatically.
               </p>
@@ -170,7 +170,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
                     <p className="text-lg font-semibold text-white">
                       Pinning photos…
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-zinc-300 mt-1">
                       {progress.done} of {progress.total} processed
                     </p>
                   </div>
@@ -187,7 +187,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
                         : "No photos pinned"}
                     </p>
                     {progress.skipped > 0 && (
-                      <p className="text-sm text-muted-foreground mt-1 flex items-center justify-center gap-1">
+                      <p className="text-sm text-zinc-300 mt-1 flex items-center justify-center gap-1">
                         <MapPin className="w-3.5 h-3.5" />
                         {progress.skipped} skipped — no GPS data
                       </p>
@@ -197,7 +197,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
               )}
 
               {/* Progress bar */}
-              <div className="w-full bg-white/10 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-zinc-600 rounded-full h-2 overflow-hidden">
                 <div
                   className="h-full bg-primary rounded-full transition-all duration-300"
                   style={{ width: `${(progress.done / progress.total) * 100}%` }}
