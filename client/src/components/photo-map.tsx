@@ -4,7 +4,8 @@ import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { usePhotos } from "@/hooks/use-photos";
-import { Drawer, DrawerContent } from "@/components/ui/drawer";
+import { Drawer, DrawerContent, DrawerTitle } from "@/components/ui/drawer";
+import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, MapPin, Navigation } from "lucide-react";
 import { format } from "date-fns";
@@ -129,56 +130,74 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
 
       {/* Photo Preview Drawer */}
       <Drawer open={!!selectedPhoto} onOpenChange={(open) => !open && setSelectedPhoto(null)}>
-        <DrawerContent className="bg-card/95 backdrop-blur-3xl border-white/10 text-foreground">
+        <DrawerContent className="bg-black border-white/10 text-foreground p-0 overflow-hidden max-h-[92dvh]">
+          <VisuallyHidden><DrawerTitle>Photo Preview</DrawerTitle></VisuallyHidden>
           {selectedPhoto && (
-            <div className="max-w-3xl mx-auto w-full pb-safe">
-              <div className="p-4 flex items-center justify-between border-b border-white/5">
-                <div className="flex items-center gap-3">
-                  <Avatar className="w-10 h-10 border border-white/10">
-                    <AvatarImage src={selectedPhoto.user?.profileImageUrl || undefined} />
-                    <AvatarFallback className="bg-primary/20 text-primary">
-                      {selectedPhoto.user?.firstName?.[0] || "U"}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <div className="font-semibold text-sm text-white">
-                      {selectedPhoto.user?.firstName} {selectedPhoto.user?.lastName}
-                    </div>
-                    <div className="text-xs text-muted-foreground flex items-center gap-1">
-                      <Calendar className="w-3 h-3" />
-                      {selectedPhoto.takenAt ? format(new Date(selectedPhoto.takenAt), "PPP") : "Unknown Date"}
-                    </div>
-                  </div>
-                </div>
+            <div className="relative w-full flex flex-col">
+              {/* Full-bleed photo */}
+              <div className="relative w-full bg-black" style={{ minHeight: "55dvh" }}>
+                <img
+                  src={selectedPhoto.imageUrl}
+                  alt="Photo"
+                  data-testid="photo-preview-image"
+                  className="w-full object-cover"
+                  style={{ maxHeight: "72dvh", minHeight: "55dvh", objectFit: "cover" }}
+                />
+
+                {/* Top gradient — space for drag handle + collection badge */}
+                <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/70 to-transparent pointer-events-none" />
+
+                {/* Collection badge top-right */}
                 {selectedPhoto.collection && (
-                  <div className="px-3 py-1 rounded-full bg-white/10 text-xs font-medium text-white/90 border border-white/5">
+                  <div className="absolute top-4 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
                     {selectedPhoto.collection.name}
                   </div>
                 )}
-              </div>
 
-              <div className="p-4">
-                <div className="relative rounded-2xl overflow-hidden shadow-2xl bg-black/50">
-                  <img
-                    src={selectedPhoto.imageUrl}
-                    alt="Photo"
-                    className="w-full max-h-[60vh] object-contain"
-                  />
-                  <div className="absolute bottom-4 right-4">
+                {/* Bottom gradient overlay with user info */}
+                <div className="absolute inset-x-0 bottom-0 h-44 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none" />
+
+                <div className="absolute inset-x-0 bottom-0 p-5 pb-4">
+                  {/* Name + avatar row */}
+                  <div className="flex items-center gap-3 mb-2">
+                    <Avatar className="w-11 h-11 border-2 border-white/30 shrink-0">
+                      <AvatarImage src={selectedPhoto.user?.profileImageUrl || undefined} />
+                      <AvatarFallback className="bg-primary/30 text-white font-bold text-base">
+                        {selectedPhoto.user?.firstName?.[0] || "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="font-bold text-white text-lg leading-tight truncate">
+                        {selectedPhoto.user?.firstName
+                          ? `${selectedPhoto.user.firstName}${selectedPhoto.user.lastName ? " " + selectedPhoto.user.lastName : ""}`
+                          : "Unknown"}
+                      </div>
+                      {selectedPhoto.takenAt && (
+                        <div className="flex items-center gap-1 text-white/70 text-sm mt-0.5">
+                          <Calendar className="w-3.5 h-3.5 shrink-0" />
+                          <span>{format(new Date(selectedPhoto.takenAt), "MMMM d, yyyy")}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Location + directions row */}
+                  <div className="flex items-center justify-between mt-3">
+                    <div className="flex items-center gap-1.5 text-white/50 text-xs">
+                      <MapPin className="w-3.5 h-3.5 shrink-0" />
+                      <span>{selectedPhoto.latitude.toFixed(4)}, {selectedPhoto.longitude.toFixed(4)}</span>
+                    </div>
                     <a
                       href={`https://maps.apple.com/?ll=${selectedPhoto.latitude},${selectedPhoto.longitude}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center gap-2 px-4 py-2 rounded-full bg-black/40 backdrop-blur-md text-sm font-medium text-white border border-white/20"
+                      data-testid="link-directions"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-white border border-white/20 hover:bg-white/25 transition-colors"
                     >
-                      <Navigation className="w-4 h-4" />
+                      <Navigation className="w-3.5 h-3.5" />
                       Directions
                     </a>
                   </div>
-                </div>
-                <div className="mt-4 flex items-center gap-2 text-sm text-muted-foreground">
-                  <MapPin className="w-4 h-4" />
-                  {selectedPhoto.latitude.toFixed(4)}, {selectedPhoto.longitude.toFixed(4)}
                 </div>
               </div>
             </div>
