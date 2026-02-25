@@ -1,38 +1,94 @@
-import { type User, type InsertUser } from "@shared/schema";
-import { randomUUID } from "crypto";
-
-// modify the interface with any CRUD methods
-// you might need
+import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users } from "@shared/schema";
+import { db } from "./db";
+import { eq, and } from "drizzle-orm";
 
 export interface IStorage {
-  getUser(id: string): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
+  // Collections
+  getCollections(userId?: string): Promise<Collection[]>;
+  getCollection(id: number): Promise<Collection | undefined>;
+  createCollection(userId: string, collection: InsertCollection): Promise<Collection>;
+
+  // Photos
+  getPhotos(filters?: { userId?: string, collectionId?: string, bounds?: string }): Promise<(Photo & { user?: any, collection?: any })[]>;
+  getPhoto(id: number): Promise<(Photo & { user?: any, collection?: any }) | undefined>;
+  createPhoto(userId: string, photo: InsertPhoto): Promise<Photo>;
+  deletePhoto(id: number, userId: string): Promise<boolean>;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<string, User>;
-
-  constructor() {
-    this.users = new Map();
+export class DatabaseStorage implements IStorage {
+  async getCollections(userId?: string): Promise<Collection[]> {
+    if (userId) {
+      return await db.select().from(collections).where(eq(collections.userId, userId));
+    }
+    return await db.select().from(collections);
   }
 
-  async getUser(id: string): Promise<User | undefined> {
-    return this.users.get(id);
+  async getCollection(id: number): Promise<Collection | undefined> {
+    const [collection] = await db.select().from(collections).where(eq(collections.id, id));
+    return collection;
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(
-      (user) => user.username === username,
-    );
+  async createCollection(userId: string, collection: InsertCollection): Promise<Collection> {
+    const [newCollection] = await db.insert(collections).values({ ...collection, userId }).returning();
+    return newCollection;
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const id = randomUUID();
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
-    return user;
+  async getPhotos(filters?: { userId?: string, collectionId?: string, bounds?: string }): Promise<(Photo & { user?: any, collection?: any })[]> {
+    let query = db.select({
+      photo: photos,
+      user: users,
+      collection: collections,
+    }).from(photos)
+      .leftJoin(users, eq(photos.userId, users.id))
+      .leftJoin(collections, eq(photos.collectionId, collections.id));
+
+    const results = await query;
+    let filtered = results;
+    
+    if (filters?.userId) {
+      filtered = filtered.filter(r => r.photo.userId === filters.userId);
+    }
+    if (filters?.collectionId) {
+      filtered = filtered.filter(r => r.photo.collectionId === Number(filters.collectionId));
+    }
+
+    return filtered.map(r => ({
+      ...r.photo,
+      user: r.user || undefined,
+      collection: r.collection || undefined,
+    }));
+  }
+
+  async getPhoto(id: number): Promise<(Photo & { user?: any, collection?: any }) | undefined> {
+    const results = await db.select({
+      photo: photos,
+      user: users,
+      collection: collections,
+    }).from(photos)
+      .leftJoin(users, eq(photos.userId, users.id))
+      .leftJoin(collections, eq(photos.collectionId, collections.id))
+      .where(eq(photos.id, id));
+    
+    if (results.length === 0) return undefined;
+
+    return {
+      ...results[0].photo,
+      user: results[0].user || undefined,
+      collection: results[0].collection || undefined,
+    };
+  }
+
+  async createPhoto(userId: string, photo: InsertPhoto): Promise<Photo> {
+    const [newPhoto] = await db.insert(photos).values({ ...photo, userId }).returning();
+    return newPhoto;
+  }
+
+  async deletePhoto(id: number, userId: string): Promise<boolean> {
+    const [deleted] = await db.delete(photos).where(
+      and(eq(photos.id, id), eq(photos.userId, userId))
+    ).returning();
+    return !!deleted;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();
