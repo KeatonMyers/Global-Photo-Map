@@ -54,12 +54,16 @@ const createCustomIcon = (imageUrl: string) => {
 };
 
 const createClusterIcon = (cluster: any) => {
-  const count = cluster.getChildCount();
+  const children = cluster.getAllChildMarkers();
+  const firstHtml: string = children[0]?.options?.icon?.options?.html ?? "";
+  const match = firstHtml.match(/background-image:\s*url\((['"]?)([\s\S]*?)\1\)/);
+  const imageUrl = match?.[2] ?? "";
+
   return L.divIcon({
     html: `
       <div class="photo-marker-container">
-        <div class="photo-cluster">
-          <span>${count.toLocaleString()}</span>
+        <div class="photo-marker-frame">
+          <div class="photo-marker-img" style="background-image: url('${imageUrl}')"></div>
         </div>
         <div class="photo-marker-tail"></div>
       </div>
