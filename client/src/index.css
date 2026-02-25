@@ -2,6 +2,91 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Photo Map Markers - Apple Photos style */
+.custom-leaflet-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.photo-marker-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  filter: drop-shadow(0 4px 12px rgba(0,0,0,0.6));
+}
+
+.photo-marker-frame {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  border: 3px solid white;
+  overflow: hidden;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  background: #1a1a2e;
+  flex-shrink: 0;
+}
+
+.photo-marker-tail {
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 11px solid white;
+  margin-top: -1px;
+  filter: drop-shadow(0 3px 5px rgba(0,0,0,0.5));
+}
+
+.photo-marker-img {
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+
+/* Cluster icon */
+.custom-cluster-icon {
+  background: none !important;
+  border: none !important;
+}
+
+.photo-cluster {
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: rgba(30, 40, 70, 0.85);
+  border: 3px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  backdrop-filter: blur(8px);
+}
+
+.photo-cluster span {
+  color: white;
+  font-size: 15px;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Leaflet attribution */
+.leaflet-control-attribution {
+  font-size: 9px !important;
+  background: rgba(0,0,0,0.4) !important;
+  color: rgba(255,255,255,0.5) !important;
+  backdrop-filter: blur(4px);
+}
+
+.leaflet-control-attribution a {
+  color: rgba(255,255,255,0.6) !important;
+}
+
+/* Hide Leaflet default marker images */
+.leaflet-default-icon-path {
+  display: none;
+}
+
 /* LIGHT MODE */
 :root {
   --button-outline: rgba(0,0,0, .10);

@@ -1,4 +1,5 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState } from "react";
+import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
@@ -34,24 +35,33 @@ const createCustomIcon = (imageUrl: string) => {
   return L.divIcon({
     html: `
       <div class="photo-marker-container">
-        <div class="photo-marker">
+        <div class="photo-marker-frame">
           <div class="photo-marker-img" style="background-image: url('${imageUrl}')"></div>
         </div>
+        <div class="photo-marker-tail"></div>
       </div>
     `,
     className: "custom-leaflet-icon",
-    iconSize: [64, 72],
-    iconAnchor: [32, 72],
-    popupAnchor: [0, -72],
+    iconSize: [68, 80],
+    iconAnchor: [34, 80],
+    popupAnchor: [0, -80],
   });
 };
 
 const createClusterIcon = (cluster: any) => {
   const count = cluster.getChildCount();
   return L.divIcon({
-    html: `<div class="photo-cluster"><span>${count}</span></div>`,
+    html: `
+      <div class="photo-marker-container">
+        <div class="photo-cluster">
+          <span>${count.toLocaleString()}</span>
+        </div>
+        <div class="photo-marker-tail"></div>
+      </div>
+    `,
     className: "custom-cluster-icon",
-    iconSize: [40, 40],
+    iconSize: [68, 80],
+    iconAnchor: [34, 80],
   });
 };
 
@@ -60,34 +70,37 @@ export function PhotoMap() {
   const { data: photos, isLoading } = usePhotos();
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
 
-  // Default to center of US if no photos, else center on first photo
-  const defaultCenter: [number, number] = useMemo(() => {
-    if (photos && photos.length > 0) {
-      return [photos[0].latitude, photos[0].longitude];
-    }
-    return [39.8283, -98.5795];
-  }, [photos]);
-
   return (
-    <div className="absolute inset-0 z-0 bg-black">
+    <div className="absolute inset-0 z-0 bg-[#081627]">
       <MapContainer 
-        center={defaultCenter} 
-        zoom={4} 
+        center={[20, 0]}
+        zoom={2}
+        minZoom={2}
+        maxZoom={18}
         className="w-full h-full"
         zoomControl={false}
+        worldCopyJump={false}
+        maxBounds={[[-90, -Infinity], [90, Infinity]]}
       >
+        {/* Ocean base layer - dark navy blue */}
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
+          attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+          zIndex={1}
         />
-        
-        {/* We place zoom control at bottom right, above nav */}
-        <div className="leaflet-bottom leaflet-right mb-24 mr-4 z-[400]">
-          <div className="leaflet-control leaflet-bar leaflet-control-zoom">
-            <a className="leaflet-control-zoom-in" href="#" title="Zoom in" role="button" aria-label="Zoom in">+</a>
-            <a className="leaflet-control-zoom-out" href="#" title="Zoom out" role="button" aria-label="Zoom out">−</a>
-          </div>
-        </div>
+        {/* Land + country borders overlay with dark styling */}
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+          zIndex={2}
+          opacity={0.85}
+        />
+        {/* Labels only layer on top */}
+        <TileLayer
+          url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+          attribution=''
+          zIndex={3}
+        />
 
         <MapEvents onBoundsChange={setBounds} />
 
