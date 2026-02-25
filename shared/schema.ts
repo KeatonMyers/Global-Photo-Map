@@ -31,6 +31,7 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, cre
   latitude: z.coerce.number(),
   longitude: z.coerce.number(),
   collectionId: z.coerce.number().optional().nullable(),
+  takenAt: z.coerce.date().optional().nullable(),
 });
 
 // Types

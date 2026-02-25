@@ -13,7 +13,7 @@ import exifr from "exifr";
 
 interface UploadDrawerProps {
   children: React.ReactNode;
-  onUploaded?: (lat: number, lng: number) => void;
+  onUploaded?: (lat: number, lng: number, imageUrl: string) => void;
 }
 
 async function resizeImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
@@ -216,7 +216,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
         title: "Photo added!",
         description: "Your photo has been placed on the map.",
       });
-      onUploaded?.(location.lat, location.lng);
+      onUploaded?.(location.lat, location.lng, base64Image);
       setOpen(false);
     } catch (err) {
       toast({

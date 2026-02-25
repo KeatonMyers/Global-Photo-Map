@@ -3,7 +3,7 @@ import { Map, User, PlusCircle } from "lucide-react";
 import { UploadDrawer } from "./upload-drawer";
 
 interface BottomNavProps {
-  onPhotoUploaded?: (lat: number, lng: number) => void;
+  onPhotoUploaded?: (lat: number, lng: number, imageUrl: string) => void;
 }
 
 export function BottomNav({ onPhotoUploaded }: BottomNavProps) {
