@@ -13,6 +13,27 @@ import exifr from "exifr";
 
 interface UploadDrawerProps {
   children: React.ReactNode;
+  onUploaded?: (lat: number, lng: number) => void;
+}
+
+async function resizeImage(file: File, maxPx = 1200, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const objectUrl = URL.createObjectURL(file);
+    img.onload = () => {
+      URL.revokeObjectURL(objectUrl);
+      const { naturalWidth: w, naturalHeight: h } = img;
+      const scale = Math.min(1, maxPx / Math.max(w, h));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(w * scale);
+      canvas.height = Math.round(h * scale);
+      const ctx = canvas.getContext("2d")!;
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      resolve(canvas.toDataURL("image/jpeg", quality));
+    };
+    img.onerror = reject;
+    img.src = objectUrl;
+  });
 }
 
 async function geocodeLocation(query: string): Promise<{ lat: number; lng: number; display: string } | null> {
@@ -30,7 +51,7 @@ async function geocodeLocation(query: string): Promise<{ lat: number; lng: numbe
   };
 }
 
-export function UploadDrawer({ children }: UploadDrawerProps) {
+export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
   const [open, setOpen] = useState(false);
   const [file, setFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -90,13 +111,13 @@ export function UploadDrawer({ children }: UploadDrawerProps) {
     setGeocodeError(null);
 
     try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        const result = reader.result as string;
-        setPreviewUrl(result);
-        setBase64Image(result);
-      };
-      reader.readAsDataURL(selected);
+      // Show a quick preview at full res, but store a resized version for upload
+      const previewObjectUrl = URL.createObjectURL(selected);
+      setPreviewUrl(previewObjectUrl);
+
+      // Resize to max 1200px and convert to JPEG base64 for upload
+      const resized = await resizeImage(selected, 1200, 0.82);
+      setBase64Image(resized);
 
       const exifData = await exifr.parse(selected, { gps: true, tiff: true });
 
@@ -195,6 +216,7 @@ export function UploadDrawer({ children }: UploadDrawerProps) {
         title: "Photo added!",
         description: "Your photo has been placed on the map.",
       });
+      onUploaded?.(location.lat, location.lng);
       setOpen(false);
     } catch (err) {
       toast({

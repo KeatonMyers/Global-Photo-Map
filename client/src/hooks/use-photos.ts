@@ -59,8 +59,8 @@ export function useCreatePhoto() {
       return api.photos.create.responses[201].parse(await res.json());
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [api.photos.list.path] });
-      queryClient.invalidateQueries({ queryKey: [api.collections.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.photos.list.path], exact: false });
+      queryClient.invalidateQueries({ queryKey: [api.collections.list.path], exact: false });
     },
   });
 }
