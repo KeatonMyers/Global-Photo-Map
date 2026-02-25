@@ -235,7 +235,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
         type="file"
         ref={fileInputRef}
         onChange={handleFileChange}
-        accept="image/jpeg,image/png,image/heic,image/heif,image/webp"
+        accept="image/*"
         multiple
         className="hidden"
         data-testid="input-file-upload"
