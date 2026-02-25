@@ -85,7 +85,7 @@ export default function Profile() {
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
                       <div className="text-[10px] text-white flex items-center truncate">
                         <MapPin className="w-3 h-3 mr-1 shrink-0" />
-                        <span className="truncate">{photo.latitude.toFixed(2)}, {photo.longitude.toFixed(2)}</span>
+                        <span className="truncate">{photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}</span>
                       </div>
                     </div>
                   </div>

@@ -19,6 +19,7 @@ export const photos = pgTable("photos", {
   imageUrl: text("image_url").notNull(),
   latitude: doublePrecision("latitude").notNull(),
   longitude: doublePrecision("longitude").notNull(),
+  locationName: text("location_name"),
   takenAt: timestamp("taken_at"), 
   collectionId: integer("collection_id").references(() => collections.id),
   createdAt: timestamp("created_at").defaultNow(),

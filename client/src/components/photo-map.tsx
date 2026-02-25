@@ -189,7 +189,7 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
                   <div className="flex items-center justify-between mt-3">
                     <div className="flex items-center gap-1.5 text-white/50 text-xs">
                       <MapPin className="w-3.5 h-3.5 shrink-0" />
-                      <span>{selectedPhoto.latitude.toFixed(4)}, {selectedPhoto.longitude.toFixed(4)}</span>
+                      <span>{selectedPhoto.locationName || `${selectedPhoto.latitude.toFixed(4)}, ${selectedPhoto.longitude.toFixed(4)}`}</span>
                     </div>
                     <a
                       href={`https://maps.apple.com/?ll=${selectedPhoto.latitude},${selectedPhoto.longitude}`}

@@ -30,6 +30,25 @@ async function resizeImage(file: File, maxPx = 1200, quality = 0.82): Promise<st
   });
 }
 
+async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`,
+      { headers: { "User-Agent": "PhotoMapApp/1.0" } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    const a = data.address ?? {};
+    const city = a.city || a.town || a.village || a.hamlet || a.county || "";
+    const state = a.state || a.region || "";
+    const country = a.country || "";
+    const parts = [city, state, country].filter(Boolean);
+    return parts.length > 0 ? parts.join(", ") : null;
+  } catch {
+    return null;
+  }
+}
+
 interface BatchProgress {
   total: number;
   done: number;
@@ -88,12 +107,16 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
           ? new Date(exifData.DateTimeOriginal)
           : new Date(file.lastModified);
 
-        const imageUrl = await resizeImage(file, 1200, 0.82);
+        const [imageUrl, locationName] = await Promise.all([
+          resizeImage(file, 1200, 0.82),
+          reverseGeocode(lat, lng),
+        ]);
 
         await createPhoto.mutateAsync({
           imageUrl,
           latitude: lat,
           longitude: lng,
+          locationName: locationName ?? undefined,
           takenAt,
           collectionId: null,
         });
