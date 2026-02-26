@@ -22,6 +22,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useDeletePhoto } from "@/hooks/use-photos";
+import { ProfilePhotoViewer } from "@/components/profile-photo-viewer";
 import { api } from "@shared/routes";
 import type { Photo } from "@shared/schema";
 
@@ -34,9 +35,13 @@ interface SortablePhotoProps {
   onLongPressStart: () => void;
   onLongPressEnd: () => void;
   onDelete: (id: number) => void;
+  onDoubleTap: () => void;
 }
 
-function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLongPressEnd, onDelete }: SortablePhotoProps) {
+function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLongPressEnd, onDelete, onDoubleTap }: SortablePhotoProps) {
+  const lastTapRef = useRef(0);
+  const touchMovedRef = useRef(false);
+  const touchStartPos = useRef<{ x: number; y: number } | null>(null);
   const {
     attributes,
     listeners,
@@ -51,19 +56,50 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
     opacity: isDragging ? 0.3 : 1,
   };
 
+  const handleTouchStartLocal = useCallback((e: React.TouchEvent) => {
+    touchMovedRef.current = false;
+    touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    onLongPressStart();
+  }, [onLongPressStart]);
+
+  const handleTouchMoveLocal = useCallback((e: React.TouchEvent) => {
+    if (touchStartPos.current) {
+      const dx = Math.abs(e.touches[0].clientX - touchStartPos.current.x);
+      const dy = Math.abs(e.touches[0].clientY - touchStartPos.current.y);
+      if (dx > 10 || dy > 10) {
+        touchMovedRef.current = true;
+      }
+    }
+    onLongPressEnd();
+  }, [onLongPressEnd]);
+
+  const handleTouchEndLocal = useCallback(() => {
+    onLongPressEnd();
+    touchStartPos.current = null;
+    if (isEditMode || touchMovedRef.current) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) {
+      lastTapRef.current = 0;
+      onDoubleTap();
+    } else {
+      lastTapRef.current = now;
+    }
+  }, [isEditMode, onDoubleTap, onLongPressEnd]);
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
       {...(isEditMode ? listeners : {})}
-      onTouchStart={!isEditMode ? onLongPressStart : undefined}
-      onTouchEnd={!isEditMode ? onLongPressEnd : undefined}
-      onTouchMove={!isEditMode ? onLongPressEnd : undefined}
+      onTouchStart={!isEditMode ? handleTouchStartLocal : undefined}
+      onTouchEnd={!isEditMode ? handleTouchEndLocal : undefined}
+      onTouchMove={!isEditMode ? handleTouchMoveLocal : undefined}
       onTouchCancel={!isEditMode ? onLongPressEnd : undefined}
       onMouseDown={!isEditMode ? onLongPressStart : undefined}
       onMouseUp={!isEditMode ? onLongPressEnd : undefined}
       onMouseLeave={!isEditMode ? onLongPressEnd : undefined}
+      onDoubleClick={!isEditMode ? onDoubleTap : undefined}
       className={`aspect-square relative group overflow-hidden bg-white/5 touch-none ${
         isEditMode ? "cursor-grab active:cursor-grabbing" : ""
       }`}
@@ -120,6 +156,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
   const [isSaving, setIsSaving] = useState(false);
   const [orderedPhotos, setOrderedPhotos] = useState<PhotoItem[]>(initialPhotos);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -248,7 +285,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
       >
         <SortableContext items={orderedPhotos.map((p) => p.id)} strategy={rectSortingStrategy}>
           <div className="grid grid-cols-3 gap-1">
-            {orderedPhotos.map((photo) => (
+            {orderedPhotos.map((photo, index) => (
               <SortablePhoto
                 key={photo.id}
                 photo={photo}
@@ -257,6 +294,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
                 onLongPressStart={startLongPress}
                 onLongPressEnd={clearLongPress}
                 onDelete={handleDeletePhoto}
+                onDoubleTap={() => setViewerIndex(index)}
               />
             ))}
           </div>
@@ -280,6 +318,14 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
         <p className="text-center text-xs text-muted-foreground/50 mt-3" data-testid="text-longpress-hint">
           Long press any photo to reorder
         </p>
+      )}
+
+      {viewerIndex !== null && (
+        <ProfilePhotoViewer
+          photos={orderedPhotos}
+          initialIndex={viewerIndex}
+          onClose={() => setViewerIndex(null)}
+        />
       )}
     </div>
   );
