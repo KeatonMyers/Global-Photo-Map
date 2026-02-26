@@ -136,53 +136,47 @@ export default function Profile() {
 
   return (
     <div className="min-h-[100dvh] bg-background text-foreground pb-24">
-      {/* Header Profile Area */}
-      <div className="pt-safe px-4 pb-6">
-        <div className="flex justify-end pt-4">
-          <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground hover:text-white hover:bg-white/10 rounded-xl">
-            <LogOut className="w-4 h-4 mr-2" /> Sign Out
-          </Button>
-        </div>
-        
-        <div className="flex flex-col items-center text-center mt-2">
-          <div className="relative">
-            <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleFileChange}
-              data-testid="input-profile-photo"
-            />
-            <button
-              onClick={handleAvatarClick}
-              className="relative z-10 group cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-              data-testid="button-change-avatar"
-              disabled={isUploading}
-            >
-              <Avatar className="w-24 h-24 border-2 border-white/10 shadow-2xl">
-                <AvatarImage src={user.profileImageUrl || undefined} />
-                <AvatarFallback className="bg-card text-2xl font-display">
-                  {user.firstName?.[0] || user.username?.[0] || 'U'}
-                </AvatarFallback>
-              </Avatar>
-              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                {isUploading ? (
-                  <Loader2 className="w-6 h-6 text-white animate-spin" />
-                ) : (
-                  <Camera className="w-6 h-6 text-white" />
-                )}
-              </div>
-            </button>
+      <div className="pt-safe px-4 pb-3">
+        <div className="flex items-center justify-between pt-3">
+          <div className="flex items-center gap-3">
+            <div className="relative shrink-0">
+              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleFileChange}
+                data-testid="input-profile-photo"
+              />
+              <button
+                onClick={handleAvatarClick}
+                className="relative z-10 group cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                data-testid="button-change-avatar"
+                disabled={isUploading}
+              >
+                <Avatar className="w-14 h-14 border-2 border-white/10 shadow-2xl">
+                  <AvatarImage src={user.profileImageUrl || undefined} />
+                  <AvatarFallback className="bg-card text-lg font-display">
+                    {user.firstName?.[0] || user.username?.[0] || 'U'}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                  {isUploading ? (
+                    <Loader2 className="w-5 h-5 text-white animate-spin" />
+                  ) : (
+                    <Camera className="w-5 h-5 text-white" />
+                  )}
+                </div>
+              </button>
+            </div>
+            <h2 className="text-lg font-bold font-display tracking-tight" data-testid="text-profile-name">
+              {user.firstName} {user.lastName}
+            </h2>
           </div>
-          
-          <h2 className="text-2xl font-bold font-display mt-4 tracking-tight">
-            {user.firstName} {user.lastName}
-          </h2>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {photos?.length || 0} Photos Pinned
-          </p>
+          <Button variant="ghost" size="sm" onClick={() => logout()} className="text-muted-foreground rounded-xl" data-testid="button-sign-out">
+            <LogOut className="w-4 h-4 mr-1" /> Sign Out
+          </Button>
         </div>
       </div>
 
