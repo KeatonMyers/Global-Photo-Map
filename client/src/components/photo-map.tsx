@@ -225,7 +225,8 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
           maxZoom={18}
           className="w-full h-full"
           zoomControl={false}
-          worldCopyJump={false}
+          worldCopyJump={true}
+          maxBoundsViscosity={1.0}
           maxBounds={[[-90, -Infinity], [90, Infinity]]}
         >
           <TileLayer
