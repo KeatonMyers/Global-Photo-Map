@@ -17,10 +17,11 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { MapPin, Check, Loader2 } from "lucide-react";
+import { MapPin, Check, Loader2, X } from "lucide-react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useDeletePhoto } from "@/hooks/use-photos";
 import { api } from "@shared/routes";
 import type { Photo } from "@shared/schema";
 
@@ -32,9 +33,10 @@ interface SortablePhotoProps {
   isDragging: boolean;
   onLongPressStart: () => void;
   onLongPressEnd: () => void;
+  onDelete: (id: number) => void;
 }
 
-function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLongPressEnd }: SortablePhotoProps) {
+function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLongPressEnd, onDelete }: SortablePhotoProps) {
   const {
     attributes,
     listeners,
@@ -87,7 +89,23 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
         </div>
       )}
       {isEditMode && (
-        <div className="absolute inset-0 border-2 border-white/30 pointer-events-none" />
+        <>
+          <div className="absolute inset-0 border-2 border-white/30 pointer-events-none" />
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onDelete(photo.id);
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onTouchStart={(e) => e.stopPropagation()}
+            onTouchEnd={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            className="absolute top-1 right-1 z-10 w-5 h-5 bg-black/70 hover:bg-red-600 rounded-full flex items-center justify-center transition-colors"
+            data-testid={`button-delete-photo-${photo.id}`}
+          >
+            <X className="w-3 h-3 text-white" />
+          </button>
+        </>
       )}
     </div>
   );
@@ -105,6 +123,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const deleteMutation = useDeletePhoto();
 
   useEffect(() => {
     if (!isEditMode && !isSaving) {
@@ -176,8 +195,27 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
       if ("vibrate" in navigator) {
         navigator.vibrate(50);
       }
-    }, 2000);
+    }, 500);
   }, [clearLongPress]);
+
+  const handleDeletePhoto = useCallback((id: number) => {
+    if (isSaving) return;
+    deleteMutation.mutate(id, {
+      onSuccess: () => {
+        setOrderedPhotos((prev) => {
+          const updated = prev.filter((p) => p.id !== id);
+          if (updated.length === 0) {
+            setIsEditMode(false);
+          }
+          return updated;
+        });
+        toast({ title: "Photo deleted" });
+      },
+      onError: () => {
+        toast({ title: "Failed to delete photo", variant: "destructive" });
+      },
+    });
+  }, [deleteMutation, toast, isSaving]);
 
   const activePhoto = activeId ? orderedPhotos.find((p) => p.id === activeId) : null;
 
@@ -218,6 +256,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
                 isDragging={activeId === photo.id}
                 onLongPressStart={startLongPress}
                 onLongPressEnd={clearLongPress}
+                onDelete={handleDeletePhoto}
               />
             ))}
           </div>
