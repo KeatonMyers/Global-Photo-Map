@@ -1,6 +1,6 @@
-import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users } from "@shared/schema";
+import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users, friendships } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql, inArray } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -22,6 +22,14 @@ export interface IStorage {
   reorderPhotos(userId: string, photoIds: number[]): Promise<void>;
   searchUsers(query: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null }[]>;
   getUserWithPhotoCount(userId: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null; photoCount: number } | undefined>;
+
+  // Friends
+  addFriend(userId: string, friendId: string): Promise<void>;
+  removeFriend(userId: string, friendId: string): Promise<void>;
+  getFriendIds(userId: string): Promise<string[]>;
+  isFriend(userId: string, friendId: string): Promise<boolean>;
+  getFriendsPhotos(userId: string): Promise<(Photo & { user?: any, collection?: any })[]>;
+  getFriendsFeedPhotos(userId: string, limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -175,6 +183,73 @@ export class DatabaseStorage implements IStorage {
       profileImageUrl: user[0].profileImageUrl,
       photoCount: photoCountResult[0]?.count || 0,
     };
+  }
+
+  async addFriend(userId: string, friendId: string): Promise<void> {
+    const existing = await db.select().from(friendships)
+      .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendId)));
+    if (existing.length > 0) return;
+    await db.insert(friendships).values({ userId, friendId });
+  }
+
+  async removeFriend(userId: string, friendId: string): Promise<void> {
+    await db.delete(friendships).where(
+      and(eq(friendships.userId, userId), eq(friendships.friendId, friendId))
+    );
+  }
+
+  async getFriendIds(userId: string): Promise<string[]> {
+    const rows = await db.select({ friendId: friendships.friendId })
+      .from(friendships)
+      .where(eq(friendships.userId, userId));
+    return rows.map(r => r.friendId);
+  }
+
+  async isFriend(userId: string, friendId: string): Promise<boolean> {
+    const rows = await db.select().from(friendships)
+      .where(and(eq(friendships.userId, userId), eq(friendships.friendId, friendId)));
+    return rows.length > 0;
+  }
+
+  async getFriendsPhotos(userId: string): Promise<(Photo & { user?: any, collection?: any })[]> {
+    const friendIds = await this.getFriendIds(userId);
+    const allIds = [userId, ...friendIds];
+    if (allIds.length === 0) return [];
+    const results = await db.select({
+      photo: photos,
+      user: users,
+      collection: collections,
+    }).from(photos)
+      .leftJoin(users, eq(photos.userId, users.id))
+      .leftJoin(collections, eq(photos.collectionId, collections.id))
+      .where(inArray(photos.userId, allIds));
+    return results.map(r => ({
+      ...r.photo,
+      user: r.user || undefined,
+      collection: r.collection || undefined,
+    }));
+  }
+
+  async getFriendsFeedPhotos(userId: string, limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]> {
+    const friendIds = await this.getFriendIds(userId);
+    const allIds = [userId, ...friendIds];
+    if (allIds.length === 0) return [];
+    const results = await db.select({
+      photo: photos,
+      user: users,
+      collection: collections,
+    }).from(photos)
+      .leftJoin(users, eq(photos.userId, users.id))
+      .leftJoin(collections, eq(photos.collectionId, collections.id))
+      .where(inArray(photos.userId, allIds))
+      .orderBy(desc(photos.createdAt))
+      .limit(limit)
+      .offset(offset);
+    return results.map(r => ({
+      ...r.photo,
+      user: r.user || undefined,
+      collection: r.collection || undefined,
+    }));
   }
 
   async backfillPhotoCountries(): Promise<void> {

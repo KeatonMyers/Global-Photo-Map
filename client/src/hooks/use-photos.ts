@@ -61,6 +61,8 @@ export function useCreatePhoto() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.photos.list.path], exact: false });
       queryClient.invalidateQueries({ queryKey: [api.collections.list.path], exact: false });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
   });
 }

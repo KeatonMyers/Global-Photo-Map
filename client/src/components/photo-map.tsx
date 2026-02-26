@@ -3,7 +3,8 @@ import "leaflet/dist/leaflet.css";
 import { MapContainer, TileLayer, Marker, GeoJSON, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
-import { usePhotos } from "@/hooks/use-photos";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
@@ -294,7 +295,16 @@ interface PhotoMapProps {
 
 export function PhotoMap({ flyToCoords }: PhotoMapProps) {
   const [, setBounds] = useState<string>("");
-  const { data: photos } = usePhotos();
+  const { user } = useAuth();
+  const { data: photos } = useQuery<PhotoResponse[]>({
+    queryKey: ["/api/friends/photos"],
+    queryFn: async () => {
+      const res = await fetch("/api/friends/photos", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch photos");
+      return res.json();
+    },
+    enabled: !!user,
+  });
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
 
   const visitedCountries = useMemo(() => {

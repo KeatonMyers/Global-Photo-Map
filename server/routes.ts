@@ -84,15 +84,68 @@ export async function registerRoutes(
     res.json(collection);
   });
 
-  app.get("/api/feed", async (req, res) => {
+  app.get("/api/feed", async (req: any, res) => {
     try {
       const limit = Math.min(Number(req.query.limit) || 20, 50);
       const offset = Number(req.query.offset) || 0;
-      const feedPhotos = await storage.getFeedPhotos(limit, offset);
-      res.json(feedPhotos);
+      const userId = req.user?.claims?.sub;
+      if (userId) {
+        const feedPhotos = await storage.getFriendsFeedPhotos(userId, limit, offset);
+        res.json(feedPhotos);
+      } else {
+        const feedPhotos = await storage.getFeedPhotos(limit, offset);
+        res.json(feedPhotos);
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Failed to fetch feed" });
+    }
+  });
+
+  app.get("/api/friends/photos", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const friendsPhotos = await storage.getFriendsPhotos(userId);
+      res.json(friendsPhotos);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch friends photos" });
+    }
+  });
+
+  app.post("/api/friends/:friendId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { friendId } = req.params;
+      if (userId === friendId) return res.status(400).json({ message: "Cannot add yourself" });
+      await storage.addFriend(userId, friendId);
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to add friend" });
+    }
+  });
+
+  app.delete("/api/friends/:friendId", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const { friendId } = req.params;
+      await storage.removeFriend(userId, friendId);
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to remove friend" });
+    }
+  });
+
+  app.get("/api/friends", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const friendIds = await storage.getFriendIds(userId);
+      res.json(friendIds);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch friends" });
     }
   });
 

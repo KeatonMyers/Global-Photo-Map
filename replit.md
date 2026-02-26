@@ -14,6 +14,7 @@ PhotoMap is a mobile-first web application that lets users upload geotagged phot
 7. Long-press (2 seconds) on any photo in the grid to enter reorder mode, drag to rearrange, tap Done to save
 8. Search for other users by name via the Search tab
 9. View another user's profile and their photos/countries
+10. Add friends from search results or user profiles — friends' photos appear in your feed and on your map
 
 ---
 
@@ -61,6 +62,7 @@ This shared layer is the key architectural decision: the API contract (`shared/r
   - `sessions` – PostgreSQL-backed session store for express-session (required by Replit Auth)
   - `collections` – User-created trip/album groupings (userId, name, description)
   - `photos` – Core data: userId, imageUrl (Base64 or URL), latitude, longitude, locationName, country, takenAt, collectionId
+  - `friendships` – One-way friend relationships: userId → friendId
 - **Migrations:** `drizzle-kit push` is used for schema pushes (no migration files needed in dev)
 
 ### Authentication

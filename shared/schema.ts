@@ -27,6 +27,13 @@ export const photos = pgTable("photos", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const friendships = pgTable("friendships", {
+  id: serial("id").primaryKey(),
+  userId: varchar("user_id").notNull(),
+  friendId: varchar("friend_id").notNull(),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // Base Schemas
 export const insertCollectionSchema = createInsertSchema(collections).omit({ id: true, createdAt: true, userId: true });
 // For photos, we'll let the user provide imageUrl (from base64 or upload), lat, lng, takenAt.

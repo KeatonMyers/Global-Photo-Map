@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
+import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/bottom-nav";
 import { ProfilePhotoViewer } from "@/components/profile-photo-viewer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Loader2, MapPin, Globe } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Globe, UserPlus, UserCheck } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Photo } from "@shared/schema";
 
@@ -34,9 +35,48 @@ interface CountryGroup {
 export default function UserProfilePage() {
   const [, params] = useRoute("/user/:id");
   const [, navigate] = useLocation();
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const userId = params?.id;
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+
+  const { data: friendIds } = useQuery<string[]>({
+    queryKey: ["/api/friends"],
+    queryFn: async () => {
+      const res = await fetch("/api/friends", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+      return res.json();
+    },
+    enabled: !!user,
+  });
+
+  const isFriend = friendIds?.includes(userId || "") || false;
+  const isSelf = user?.id === userId;
+
+  const addFriendMutation = useMutation({
+    mutationFn: async (friendId: string) => {
+      const res = await fetch(`/api/friends/${friendId}`, { method: "POST", credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+    },
+  });
+
+  const removeFriendMutation = useMutation({
+    mutationFn: async (friendId: string) => {
+      const res = await fetch(`/api/friends/${friendId}`, { method: "DELETE", credentials: "include" });
+      if (!res.ok) throw new Error("Failed");
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
+    },
+  });
 
   const { data: profile, isLoading: profileLoading } = useQuery<UserProfile>({
     queryKey: ["/api/users", userId],
@@ -119,6 +159,36 @@ export default function UserProfilePage() {
               {name}
             </h1>
           </div>
+
+          {!isSelf && user && (
+            <button
+              onClick={() => {
+                if (isFriend) {
+                  removeFriendMutation.mutate(userId!);
+                } else {
+                  addFriendMutation.mutate(userId!);
+                }
+              }}
+              className={`shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-medium transition-all ${
+                isFriend
+                  ? "bg-white/10 text-white/70 hover:bg-red-500/20 hover:text-red-400"
+                  : "bg-primary text-white hover:bg-primary/80"
+              }`}
+              data-testid="button-toggle-friend"
+            >
+              {isFriend ? (
+                <>
+                  <UserCheck className="w-4 h-4" />
+                  Friends
+                </>
+              ) : (
+                <>
+                  <UserPlus className="w-4 h-4" />
+                  Add Friend
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
