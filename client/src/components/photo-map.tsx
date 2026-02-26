@@ -229,62 +229,64 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
 
   return (
-    <div className="absolute inset-0 z-0 bg-[#081627]">
-      <MapContainer
-        center={[20, 0]}
-        zoom={2}
-        minZoom={2}
-        maxZoom={18}
-        className="w-full h-full"
-        zoomControl={false}
-        worldCopyJump={false}
-        maxBounds={[[-90, -Infinity], [90, Infinity]]}
-      >
-        <TileLayer
-          url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
-          attribution='&copy; <a href="https://www.esri.com">Esri</a>'
-          zIndex={1}
-        />
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
-          zIndex={2}
-          opacity={0.85}
-        />
-        <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
-          attribution=""
-          zIndex={3}
-        />
-
-        <MapEvents onBoundsChange={setBounds} />
-        <FlyToLocation coords={flyToCoords ?? null} />
-
-        <MarkerClusterGroup
-          chunkedLoading
-          iconCreateFunction={createClusterIcon}
-          maxClusterRadius={50}
-          spiderfyOnMaxZoom={false}
-          showCoverageOnHover={false}
-          animate={false}
-          polygonOptions={{ interactive: false, opacity: 0, fillOpacity: 0 }}
+    <>
+      <div className="absolute inset-0 z-0 bg-[#081627]">
+        <MapContainer
+          center={[20, 0]}
+          zoom={2}
+          minZoom={2}
+          maxZoom={18}
+          className="w-full h-full"
+          zoomControl={false}
+          worldCopyJump={false}
+          maxBounds={[[-90, -Infinity], [90, Infinity]]}
         >
-          {photos?.map((photo) => (
-            <Marker
-              key={photo.id}
-              position={[photo.latitude, photo.longitude]}
-              icon={createCustomIcon(photo.imageUrl)}
-              eventHandlers={{
-                click: () => setSelectedPhoto(photo),
-                touchend: (e: any) => {
-                  e.originalEvent?.stopPropagation?.();
-                  setSelectedPhoto(photo);
-                },
-              }}
-            />
-          ))}
-        </MarkerClusterGroup>
-      </MapContainer>
+          <TileLayer
+            url="https://server.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}"
+            attribution='&copy; <a href="https://www.esri.com">Esri</a>'
+            zIndex={1}
+          />
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+            attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+            zIndex={2}
+            opacity={0.85}
+          />
+          <TileLayer
+            url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+            attribution=""
+            zIndex={3}
+          />
+
+          <MapEvents onBoundsChange={setBounds} />
+          <FlyToLocation coords={flyToCoords ?? null} />
+
+          <MarkerClusterGroup
+            chunkedLoading
+            iconCreateFunction={createClusterIcon}
+            maxClusterRadius={50}
+            spiderfyOnMaxZoom={false}
+            showCoverageOnHover={false}
+            animate={false}
+            polygonOptions={{ interactive: false, opacity: 0, fillOpacity: 0 }}
+          >
+            {photos?.map((photo) => (
+              <Marker
+                key={photo.id}
+                position={[photo.latitude, photo.longitude]}
+                icon={createCustomIcon(photo.imageUrl)}
+                eventHandlers={{
+                  click: () => setSelectedPhoto(photo),
+                  touchend: (e: any) => {
+                    e.originalEvent?.stopPropagation?.();
+                    setSelectedPhoto(photo);
+                  },
+                }}
+              />
+            ))}
+          </MarkerClusterGroup>
+        </MapContainer>
+      </div>
 
       {selectedPhoto && (
         <FullScreenPhoto
@@ -292,6 +294,6 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
           onClose={() => setSelectedPhoto(null)}
         />
       )}
-    </div>
+    </>
   );
 }
