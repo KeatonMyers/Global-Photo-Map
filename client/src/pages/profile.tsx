@@ -1,18 +1,93 @@
+import { useRef, useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePhotos } from "@/hooks/use-photos";
 import { useCollections } from "@/hooks/use-collections";
 import { BottomNav } from "@/components/bottom-nav";
 import WelcomePage from "./welcome";
-import { Loader2, MapPin, Grid3X3, Layers, LogOut } from "lucide-react";
+import { Loader2, MapPin, Grid3X3, Layers, LogOut, Camera } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+
+function resizeImage(file: File, maxSize: number, quality: number): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width > height) {
+            height = (height / width) * maxSize;
+            width = maxSize;
+          } else {
+            width = (width / height) * maxSize;
+            height = maxSize;
+          }
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = reject;
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 export default function Profile() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
   
   const { data: photos, isLoading: isLoadingPhotos } = usePhotos({ userId: user?.id });
   const { data: collections, isLoading: isLoadingCollections } = useCollections(user?.id);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (imageUrl: string) => {
+      await apiRequest("PATCH", "/api/auth/profile-image", { imageUrl });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+      toast({ title: "Profile photo updated!" });
+    },
+    onError: () => {
+      toast({ title: "Failed to update profile photo", variant: "destructive" });
+    },
+  });
+
+  const handleAvatarClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Please select an image file", variant: "destructive" });
+      return;
+    }
+    setIsUploading(true);
+    try {
+      const resized = await resizeImage(file, 400, 0.85);
+      await uploadMutation.mutateAsync(resized);
+    } catch {
+      toast({ title: "Failed to process image", variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   if (isLoading) {
     return (
@@ -39,12 +114,34 @@ export default function Profile() {
         <div className="flex flex-col items-center text-center mt-2">
           <div className="relative">
             <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
-            <Avatar className="w-24 h-24 border-2 border-white/10 shadow-2xl relative z-10">
-              <AvatarImage src={user.profileImageUrl || undefined} />
-              <AvatarFallback className="bg-card text-2xl font-display">
-                {user.firstName?.[0] || user.username?.[0] || 'U'}
-              </AvatarFallback>
-            </Avatar>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={handleFileChange}
+              data-testid="input-profile-photo"
+            />
+            <button
+              onClick={handleAvatarClick}
+              className="relative z-10 group cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              data-testid="button-change-avatar"
+              disabled={isUploading}
+            >
+              <Avatar className="w-24 h-24 border-2 border-white/10 shadow-2xl">
+                <AvatarImage src={user.profileImageUrl || undefined} />
+                <AvatarFallback className="bg-card text-2xl font-display">
+                  {user.firstName?.[0] || user.username?.[0] || 'U'}
+                </AvatarFallback>
+              </Avatar>
+              <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                {isUploading ? (
+                  <Loader2 className="w-6 h-6 text-white animate-spin" />
+                ) : (
+                  <Camera className="w-6 h-6 text-white" />
+                )}
+              </div>
+            </button>
           </div>
           
           <h2 className="text-2xl font-bold font-display mt-4 tracking-tight">

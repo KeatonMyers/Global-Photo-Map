@@ -84,5 +84,29 @@ export async function registerRoutes(
     res.json(collection);
   });
 
+  app.patch("/api/auth/profile-image", isAuthenticated, async (req: any, res) => {
+    try {
+      const { imageUrl } = req.body;
+      if (!imageUrl || typeof imageUrl !== "string") {
+        return res.status(400).json({ message: "imageUrl is required" });
+      }
+      if (!imageUrl.startsWith("data:image/")) {
+        return res.status(400).json({ message: "Invalid image format" });
+      }
+      const maxSizeBytes = 500 * 1024;
+      const base64Data = imageUrl.split(",")[1] || "";
+      const sizeBytes = Math.ceil(base64Data.length * 0.75);
+      if (sizeBytes > maxSizeBytes) {
+        return res.status(400).json({ message: "Image too large. Maximum size is 500KB." });
+      }
+      const userId = req.user.claims.sub;
+      await storage.updateUserProfileImage(userId, imageUrl);
+      res.json({ success: true });
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to update profile image" });
+    }
+  });
+
   return httpServer;
 }

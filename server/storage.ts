@@ -13,6 +13,9 @@ export interface IStorage {
   getPhoto(id: number): Promise<(Photo & { user?: any, collection?: any }) | undefined>;
   createPhoto(userId: string, photo: InsertPhoto): Promise<Photo>;
   deletePhoto(id: number, userId: string): Promise<boolean>;
+
+  // Users
+  updateUserProfileImage(userId: string, imageUrl: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -88,6 +91,10 @@ export class DatabaseStorage implements IStorage {
       and(eq(photos.id, id), eq(photos.userId, userId))
     ).returning();
     return !!deleted;
+  }
+
+  async updateUserProfileImage(userId: string, imageUrl: string): Promise<void> {
+    await db.update(users).set({ profileImageUrl: imageUrl, updatedAt: new Date() }).where(eq(users.id, userId));
   }
 }
 
