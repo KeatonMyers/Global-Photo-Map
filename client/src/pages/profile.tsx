@@ -189,10 +189,10 @@ export default function Profile() {
       <div className="px-4">
         <Tabs defaultValue="photos" className="w-full">
           <TabsList className="w-full bg-white/5 border border-white/10 p-1 rounded-xl h-12 mb-6">
-            <TabsTrigger value="photos" className="w-1/2 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+            <TabsTrigger value="photos" className="w-1/2 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Grid3X3 className="w-4 h-4 mr-2" /> Photos
             </TabsTrigger>
-            <TabsTrigger value="countries" className="w-1/2 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-countries">
+            <TabsTrigger value="countries" className="w-1/2 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-countries">
               <Globe className="w-4 h-4 mr-2" /> Countries
             </TabsTrigger>
           </TabsList>

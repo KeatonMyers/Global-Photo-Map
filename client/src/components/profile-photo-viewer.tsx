@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
-import { MapPin, Calendar } from "lucide-react";
+import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Photo } from "@shared/schema";
 
@@ -82,6 +82,10 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
     if (directionLocked.current === "horizontal") {
       latestDx.current = dx;
       setOffset({ x: dx, y: 0 });
+    } else if (directionLocked.current === "vertical") {
+      const downOnly = Math.max(0, dy);
+      latestDx.current = downOnly;
+      setOffset({ x: 0, y: downOnly });
     }
   };
 
@@ -89,9 +93,8 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
     setIsDragging(false);
     if (!touchStartRef.current) return;
 
-    const dx = latestDx.current;
-
     if (directionLocked.current === "horizontal") {
+      const dx = latestDx.current;
       if (dx > DISMISS_THRESHOLD && currentIndex === 0) {
         dismiss();
       } else if (dx > SWIPE_NAV_THRESHOLD && currentIndex > 0) {
@@ -99,6 +102,8 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
       } else if (dx < -SWIPE_NAV_THRESHOLD && currentIndex < photos.length - 1) {
         goToPhoto("left");
       }
+    } else if (directionLocked.current === "vertical" && offset.y >= DISMISS_THRESHOLD) {
+      dismiss();
     }
 
     setOffset({ x: 0, y: 0 });
@@ -107,7 +112,8 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
     directionLocked.current = null;
   };
 
-  const progress = Math.min(1, Math.abs(offset.x) / 200);
+  const drag = Math.max(Math.abs(offset.x), Math.abs(offset.y));
+  const progress = Math.min(1, drag / 200);
   const viewOpacity = exiting ? 0 : 1 - progress * 0.3;
   const viewScale = 1 - progress * 0.03;
 
@@ -119,7 +125,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
     <div
       className="fixed inset-0 z-50 bg-black touch-none"
       style={{
-        transform: `translateX(${isDragging ? offset.x : 0}px) scale(${isDragging ? viewScale : exiting ? 0.95 : 1})`,
+        transform: `translate(${isDragging ? offset.x : 0}px, ${isDragging ? offset.y : 0}px) scale(${isDragging ? viewScale : exiting ? 0.95 : 1})`,
         opacity: viewOpacity,
         transition: isDragging
           ? "none"
@@ -161,21 +167,17 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
       )}
 
       <div className="absolute inset-x-0 bottom-0 p-5" style={{ paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 12px))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
-        <div className="min-w-0 mb-1">
-          <div className="font-bold text-white text-lg leading-tight truncate">
-            {photo.locationName || `${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)}`}
+        {photo.locationName && (
+          <div className="font-bold text-white text-lg leading-tight truncate mb-1">
+            {photo.locationName}
           </div>
-          {photo.takenAt && (
-            <div className="flex items-center gap-1 text-white/70 text-sm mt-1">
-              <Calendar className="w-3.5 h-3.5 shrink-0" />
-              <span>{format(new Date(photo.takenAt), "MMMM d, yyyy")}</span>
-            </div>
-          )}
-        </div>
-        <div className="flex items-center gap-1.5 text-white/50 text-xs mt-1">
-          <MapPin className="w-3.5 h-3.5 shrink-0" />
-          <span>{photo.latitude.toFixed(4)}, {photo.longitude.toFixed(4)}</span>
-        </div>
+        )}
+        {photo.takenAt && (
+          <div className="flex items-center gap-1 text-white/70 text-sm">
+            <Calendar className="w-3.5 h-3.5 shrink-0" />
+            <span>{format(new Date(photo.takenAt), "MMMM d, yyyy")}</span>
+          </div>
+        )}
       </div>
     </div>
   );
