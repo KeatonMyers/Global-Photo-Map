@@ -53,11 +53,11 @@ function FeedCard({ photo }: { photo: PhotoResponse }) {
         </div>
       </div>
 
-      <div className="relative w-full aspect-square bg-black/30">
+      <div className="relative w-full bg-black/30">
         <img
           src={photo.imageUrl}
           alt={photo.locationName || "Photo"}
-          className="w-full h-full object-cover"
+          className="w-full object-contain max-h-[600px]"
           loading="lazy"
           data-testid={`feed-image-${photo.id}`}
         />
