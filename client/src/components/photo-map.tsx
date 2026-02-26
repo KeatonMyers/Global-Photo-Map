@@ -5,7 +5,7 @@ import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { usePhotos } from "@/hooks/use-photos";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, MapPin, Navigation } from "lucide-react";
+import { Calendar, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import type { PhotoResponse } from "@shared/schema";
 
@@ -172,9 +172,9 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
       )}
 
       {/* Bottom metadata — transparent, text shadow for readability */}
-      <div className="absolute inset-x-0 bottom-0 p-5 pb-safe" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+      <div className="absolute inset-x-0 bottom-0 p-5" style={{ paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 12px))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
         {/* Avatar + name + date */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center gap-3 mb-2">
           <Avatar className="w-11 h-11 border-2 border-white/30 shrink-0">
             <AvatarImage src={photo.user?.profileImageUrl || undefined} />
             <AvatarFallback className="bg-primary/30 text-white font-bold text-base">
@@ -196,23 +196,10 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
           </div>
         </div>
 
-        {/* Location + directions */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5 text-white/50 text-xs">
-            <MapPin className="w-3.5 h-3.5 shrink-0" />
-            <span>{photo.locationName || `${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)}`}</span>
-          </div>
-          <a
-            href={`https://maps.apple.com/?ll=${photo.latitude},${photo.longitude}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            data-testid="link-directions"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 backdrop-blur-md text-xs font-semibold text-white border border-white/20 active:bg-white/25 transition-colors"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <Navigation className="w-3.5 h-3.5" />
-            Directions
-          </a>
+        {/* Location */}
+        <div className="flex items-center gap-1.5 text-white/50 text-xs">
+          <MapPin className="w-3.5 h-3.5 shrink-0" />
+          <span>{photo.locationName || `${photo.latitude.toFixed(4)}, ${photo.longitude.toFixed(4)}`}</span>
         </div>
       </div>
     </div>
