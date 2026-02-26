@@ -84,6 +84,24 @@ export async function registerRoutes(
     res.json(collection);
   });
 
+  app.patch("/api/photos/reorder", isAuthenticated, async (req: any, res) => {
+    try {
+      const schema = z.object({
+        photoIds: z.array(z.number()),
+      });
+      const { photoIds } = schema.parse(req.body);
+      const userId = req.user.claims.sub;
+      await storage.reorderPhotos(userId, photoIds);
+      res.json({ success: true });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      console.error(err);
+      res.status(500).json({ message: "Failed to reorder photos" });
+    }
+  });
+
   app.patch("/api/auth/profile-image", isAuthenticated, async (req: any, res) => {
     try {
       const { imageUrl } = req.body;

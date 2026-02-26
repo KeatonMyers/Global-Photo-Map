@@ -11,6 +11,7 @@ PhotoMap is a mobile-first web application that lets users upload geotagged phot
 4. Browse your profile to see your photos grouped by country
 5. Click on a country card to see all photos taken in that country
 6. Upload a custom profile picture by tapping the avatar circle
+7. Long-press (2 seconds) on any photo in the grid to enter reorder mode, drag to rearrange, tap Done to save
 
 ---
 
@@ -99,6 +100,7 @@ Both the server handlers and client hooks import from this object, so changing a
 | `wouter` | Lightweight client-side router |
 | `shadcn/ui` + Radix UI | Accessible UI component primitives |
 | `tailwindcss` | Utility-first CSS |
+| `@dnd-kit/core` + `@dnd-kit/sortable` | Drag-and-drop reordering for photo grid |
 | `vaul` | Drawer component (used for upload UI) |
 | `date-fns` | Date formatting |
 | `zod` | Runtime validation (shared between client and server) |

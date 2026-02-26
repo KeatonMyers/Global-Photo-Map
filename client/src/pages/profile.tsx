@@ -10,6 +10,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { SortablePhotoGrid } from "@/components/sortable-photo-grid";
 import type { Photo } from "@shared/schema";
 
 function resizeImage(file: File, maxSize: number, quality: number): Promise<string> {
@@ -202,24 +203,7 @@ export default function Profile() {
                 <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
               </div>
             ) : photos && photos.length > 0 ? (
-              <div className="grid grid-cols-3 gap-1">
-                {photos.map((photo) => (
-                  <div key={photo.id} className="aspect-square relative group overflow-hidden bg-white/5">
-                    <img 
-                      src={photo.imageUrl} 
-                      alt="Uploaded" 
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-                      <div className="text-[10px] text-white flex items-center truncate">
-                        <MapPin className="w-3 h-3 mr-1 shrink-0" />
-                        <span className="truncate">{photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              <SortablePhotoGrid photos={photos} />
             ) : (
               <div className="text-center py-20 px-4">
                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">

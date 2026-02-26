@@ -16,6 +16,7 @@ export interface IStorage {
 
   // Users
   updateUserProfileImage(userId: string, imageUrl: string): Promise<void>;
+  reorderPhotos(userId: string, photoIds: number[]): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -55,11 +56,13 @@ export class DatabaseStorage implements IStorage {
       filtered = filtered.filter(r => r.photo.collectionId === Number(filters.collectionId));
     }
 
-    return filtered.map(r => ({
-      ...r.photo,
-      user: r.user || undefined,
-      collection: r.collection || undefined,
-    }));
+    return filtered
+      .map(r => ({
+        ...r.photo,
+        user: r.user || undefined,
+        collection: r.collection || undefined,
+      }))
+      .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
   }
 
   async getPhoto(id: number): Promise<(Photo & { user?: any, collection?: any }) | undefined> {
@@ -95,6 +98,21 @@ export class DatabaseStorage implements IStorage {
 
   async updateUserProfileImage(userId: string, imageUrl: string): Promise<void> {
     await db.update(users).set({ profileImageUrl: imageUrl, updatedAt: new Date() }).where(eq(users.id, userId));
+  }
+
+  async reorderPhotos(userId: string, photoIds: number[]): Promise<void> {
+    const userPhotos = await db.select({ id: photos.id }).from(photos).where(eq(photos.userId, userId));
+    const userPhotoIds = new Set(userPhotos.map(p => p.id));
+    for (const id of photoIds) {
+      if (!userPhotoIds.has(id)) {
+        throw new Error("Invalid photo ID in reorder request");
+      }
+    }
+    for (let i = 0; i < photoIds.length; i++) {
+      await db.update(photos)
+        .set({ sortOrder: i })
+        .where(and(eq(photos.id, photoIds[i]), eq(photos.userId, userId)));
+    }
   }
 
   async backfillPhotoCountries(): Promise<void> {
