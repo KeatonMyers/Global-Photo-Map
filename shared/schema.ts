@@ -20,6 +20,7 @@ export const photos = pgTable("photos", {
   latitude: doublePrecision("latitude").notNull(),
   longitude: doublePrecision("longitude").notNull(),
   locationName: text("location_name"),
+  country: text("country"),
   takenAt: timestamp("taken_at"), 
   collectionId: integer("collection_id").references(() => collections.id),
   createdAt: timestamp("created_at").defaultNow(),
@@ -33,6 +34,7 @@ export const insertPhotoSchema = createInsertSchema(photos).omit({ id: true, cre
   longitude: z.coerce.number(),
   collectionId: z.coerce.number().optional().nullable(),
   takenAt: z.coerce.date().optional().nullable(),
+  country: z.string().optional().nullable(),
 });
 
 // Types

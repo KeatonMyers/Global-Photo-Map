@@ -30,22 +30,25 @@ async function resizeImage(file: File, maxPx = 1200, quality = 0.82): Promise<st
   });
 }
 
-async function reverseGeocode(lat: number, lng: number): Promise<string | null> {
+async function reverseGeocode(lat: number, lng: number): Promise<{ locationName: string | null; country: string | null }> {
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&accept-language=en`,
       { headers: { "User-Agent": "PhotoMapApp/1.0" } }
     );
-    if (!res.ok) return null;
+    if (!res.ok) return { locationName: null, country: null };
     const data = await res.json();
     const a = data.address ?? {};
     const city = a.city || a.town || a.village || a.hamlet || a.county || "";
     const state = a.state || a.region || "";
     const country = a.country || "";
     const parts = [city, state, country].filter(Boolean);
-    return parts.length > 0 ? parts.join(", ") : null;
+    return {
+      locationName: parts.length > 0 ? parts.join(", ") : null,
+      country: country || null,
+    };
   } catch {
-    return null;
+    return { locationName: null, country: null };
   }
 }
 
@@ -107,7 +110,7 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
           ? new Date(exifData.DateTimeOriginal)
           : new Date(file.lastModified);
 
-        const [imageUrl, locationName] = await Promise.all([
+        const [imageUrl, geoResult] = await Promise.all([
           resizeImage(file, 1200, 0.82),
           reverseGeocode(lat, lng),
         ]);
@@ -116,7 +119,8 @@ export function UploadDrawer({ children, onUploaded }: UploadDrawerProps) {
           imageUrl,
           latitude: lat,
           longitude: lng,
-          locationName: locationName ?? undefined,
+          locationName: geoResult.locationName ?? undefined,
+          country: geoResult.country ?? undefined,
           takenAt,
           collectionId: null,
         });

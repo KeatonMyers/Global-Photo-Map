@@ -96,6 +96,20 @@ export class DatabaseStorage implements IStorage {
   async updateUserProfileImage(userId: string, imageUrl: string): Promise<void> {
     await db.update(users).set({ profileImageUrl: imageUrl, updatedAt: new Date() }).where(eq(users.id, userId));
   }
+
+  async backfillPhotoCountries(): Promise<void> {
+    const allPhotos = await db.select().from(photos);
+    for (const photo of allPhotos) {
+      if (photo.country) continue;
+      if (photo.locationName) {
+        const parts = photo.locationName.split(",").map(p => p.trim());
+        const country = parts[parts.length - 1] || null;
+        if (country) {
+          await db.update(photos).set({ country }).where(eq(photos.id, photo.id));
+        }
+      }
+    }
+  }
 }
 
 export const storage = new DatabaseStorage();

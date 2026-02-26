@@ -8,8 +8,9 @@ PhotoMap is a mobile-first web application that lets users upload geotagged phot
 1. Land on welcome page → log in via Replit Auth
 2. View the global photo map with clustered thumbnail markers
 3. Upload a photo → EXIF GPS extracted client-side → pinned on map with a fly-to animation
-4. Browse your profile to see your photos and collections
-5. Organize photos into collections (trips)
+4. Browse your profile to see your photos grouped by country
+5. Click on a country card to see all photos taken in that country
+6. Upload a custom profile picture by tapping the avatar circle
 
 ---
 
@@ -56,7 +57,7 @@ This shared layer is the key architectural decision: the API contract (`shared/r
   - `users` – Replit Auth user profiles (id, email, firstName, lastName, profileImageUrl)
   - `sessions` – PostgreSQL-backed session store for express-session (required by Replit Auth)
   - `collections` – User-created trip/album groupings (userId, name, description)
-  - `photos` – Core data: userId, imageUrl (Base64 or URL), latitude, longitude, takenAt, collectionId
+  - `photos` – Core data: userId, imageUrl (Base64 or URL), latitude, longitude, locationName, country, takenAt, collectionId
 - **Migrations:** `drizzle-kit push` is used for schema pushes (no migration files needed in dev)
 
 ### Authentication

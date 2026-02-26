@@ -1,16 +1,16 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useMemo } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { usePhotos } from "@/hooks/use-photos";
-import { useCollections } from "@/hooks/use-collections";
 import { BottomNav } from "@/components/bottom-nav";
 import WelcomePage from "./welcome";
-import { Loader2, MapPin, Grid3X3, Layers, LogOut, Camera } from "lucide-react";
+import { Loader2, MapPin, Grid3X3, Globe, LogOut, Camera, ArrowLeft } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import type { Photo } from "@shared/schema";
 
 function resizeImage(file: File, maxSize: number, quality: number): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -43,15 +43,47 @@ function resizeImage(file: File, maxSize: number, quality: number): Promise<stri
   });
 }
 
+function getCountryFromPhoto(photo: Photo & { country?: string | null; locationName?: string | null }): string {
+  if (photo.country) return photo.country;
+  if (photo.locationName) {
+    const parts = photo.locationName.split(",").map(p => p.trim());
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
+  return "Unknown";
+}
+
+interface CountryGroup {
+  country: string;
+  photos: (Photo & { user?: any; collection?: any })[];
+  coverPhoto: Photo & { user?: any; collection?: any };
+}
+
 export default function Profile() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
   const { data: photos, isLoading: isLoadingPhotos } = usePhotos({ userId: user?.id });
-  const { data: collections, isLoading: isLoadingCollections } = useCollections(user?.id);
+
+  const countryGroups = useMemo<CountryGroup[]>(() => {
+    if (!photos || photos.length === 0) return [];
+    const groups: Record<string, (Photo & { user?: any; collection?: any })[]> = {};
+    for (const photo of photos) {
+      const country = getCountryFromPhoto(photo);
+      if (!groups[country]) groups[country] = [];
+      groups[country].push(photo);
+    }
+    return Object.entries(groups)
+      .map(([country, countryPhotos]) => ({
+        country,
+        photos: countryPhotos,
+        coverPhoto: countryPhotos[0],
+      }))
+      .sort((a, b) => b.photos.length - a.photos.length);
+  }, [photos]);
 
   const uploadMutation = useMutation({
     mutationFn: async (imageUrl: string) => {
@@ -159,8 +191,8 @@ export default function Profile() {
             <TabsTrigger value="photos" className="w-1/2 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
               <Grid3X3 className="w-4 h-4 mr-2" /> Photos
             </TabsTrigger>
-            <TabsTrigger value="collections" className="w-1/2 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-              <Layers className="w-4 h-4 mr-2" /> Trips
+            <TabsTrigger value="countries" className="w-1/2 rounded-lg data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-countries">
+              <Globe className="w-4 h-4 mr-2" /> Countries
             </TabsTrigger>
           </TabsList>
 
@@ -201,49 +233,100 @@ export default function Profile() {
             )}
           </TabsContent>
 
-          <TabsContent value="collections" className="outline-none">
-            {isLoadingCollections ? (
+          <TabsContent value="countries" className="outline-none">
+            {isLoadingPhotos ? (
               <div className="flex justify-center p-12">
                 <Loader2 className="w-6 h-6 text-muted-foreground animate-spin" />
               </div>
-            ) : collections && collections.length > 0 ? (
+            ) : selectedCountry ? (
+              <div>
+                <button
+                  onClick={() => setSelectedCountry(null)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-white transition-colors mb-4"
+                  data-testid="button-back-countries"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  All Countries
+                </button>
+                <h3 className="text-xl font-bold font-display mb-4" data-testid="text-country-title">{selectedCountry}</h3>
+                <div className="grid grid-cols-3 gap-1">
+                  {countryGroups
+                    .find(g => g.country === selectedCountry)
+                    ?.photos.map((photo) => (
+                      <div key={photo.id} className="aspect-square relative group overflow-hidden bg-white/5" data-testid={`photo-country-${photo.id}`}>
+                        <img
+                          src={photo.imageUrl}
+                          alt="Uploaded"
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+                          <div className="text-[10px] text-white flex items-center truncate">
+                            <MapPin className="w-3 h-3 mr-1 shrink-0" />
+                            <span className="truncate">{photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}</span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              </div>
+            ) : countryGroups.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {collections.map((col) => (
-                  <div key={col.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 hover:bg-white/10 transition-colors cursor-pointer">
-                    <h3 className="font-semibold text-lg">{col.name}</h3>
-                    <p className="text-sm text-muted-foreground mt-1">
-                      {col.photos?.length || 0} items
-                    </p>
-                    
-                    {col.photos && col.photos.length > 0 && (
-                      <div className="flex mt-4 -space-x-2 overflow-hidden">
-                        {col.photos.slice(0, 4).map((p, i) => (
-                          <img 
-                            key={p.id} 
-                            className="inline-block h-10 w-10 rounded-full ring-2 ring-background object-cover" 
-                            src={p.imageUrl} 
-                            alt="" 
-                            style={{ zIndex: 4 - i }}
+                {countryGroups.map((group) => (
+                  <button
+                    key={group.country}
+                    onClick={() => setSelectedCountry(group.country)}
+                    className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors cursor-pointer text-left w-full"
+                    data-testid={`button-country-${group.country}`}
+                  >
+                    <div className="relative h-32">
+                      <img
+                        src={group.coverPhoto.imageUrl}
+                        alt={group.country}
+                        className="w-full h-full object-cover"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="font-semibold text-lg text-white flex items-center gap-2">
+                          <Globe className="w-4 h-4 shrink-0" />
+                          {group.country}
+                        </h3>
+                        <p className="text-sm text-white/70 mt-0.5">
+                          {group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="p-3">
+                      <div className="flex -space-x-2 overflow-hidden">
+                        {group.photos.slice(0, 5).map((p, i) => (
+                          <img
+                            key={p.id}
+                            className="inline-block h-8 w-8 rounded-full ring-2 ring-background object-cover"
+                            src={p.imageUrl}
+                            alt=""
+                            style={{ zIndex: 5 - i }}
+                            loading="lazy"
                           />
                         ))}
-                        {col.photos.length > 4 && (
-                          <div className="inline-flex h-10 w-10 items-center justify-center rounded-full ring-2 ring-background bg-white/10 text-xs font-medium z-0">
-                            +{col.photos.length - 4}
+                        {group.photos.length > 5 && (
+                          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-background bg-white/10 text-xs font-medium z-0">
+                            +{group.photos.length - 5}
                           </div>
                         )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  </button>
                 ))}
               </div>
             ) : (
               <div className="text-center py-20 px-4">
                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Layers className="w-8 h-8 text-muted-foreground" />
+                  <Globe className="w-8 h-8 text-muted-foreground" />
                 </div>
-                <h3 className="text-lg font-semibold mb-2">No Trips</h3>
+                <h3 className="text-lg font-semibold mb-2">No Countries Yet</h3>
                 <p className="text-muted-foreground text-sm max-w-[200px] mx-auto">
-                  Group your photos into trips and collections when you upload them.
+                  Upload photos from your adventures to see them grouped by country.
                 </p>
               </div>
             )}
