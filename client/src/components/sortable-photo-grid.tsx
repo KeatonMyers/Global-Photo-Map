@@ -30,9 +30,11 @@ interface SortablePhotoProps {
   photo: PhotoItem;
   isEditMode: boolean;
   isDragging: boolean;
+  onLongPressStart: () => void;
+  onLongPressEnd: () => void;
 }
 
-function SortablePhoto({ photo, isEditMode, isDragging }: SortablePhotoProps) {
+function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLongPressEnd }: SortablePhotoProps) {
   const {
     attributes,
     listeners,
@@ -41,11 +43,10 @@ function SortablePhoto({ photo, isEditMode, isDragging }: SortablePhotoProps) {
     transition,
   } = useSortable({ id: photo.id, disabled: !isEditMode });
 
-  const style: React.CSSProperties = {
+  const style = {
     transform: CSS.Transform.toString(transform),
     transition,
     opacity: isDragging ? 0.3 : 1,
-    touchAction: isEditMode ? "none" : undefined,
   };
 
   return (
@@ -54,7 +55,14 @@ function SortablePhoto({ photo, isEditMode, isDragging }: SortablePhotoProps) {
       style={style}
       {...attributes}
       {...(isEditMode ? listeners : {})}
-      className={`aspect-square relative overflow-hidden bg-white/5 ${
+      onTouchStart={!isEditMode ? onLongPressStart : undefined}
+      onTouchEnd={!isEditMode ? onLongPressEnd : undefined}
+      onTouchMove={!isEditMode ? onLongPressEnd : undefined}
+      onTouchCancel={!isEditMode ? onLongPressEnd : undefined}
+      onMouseDown={!isEditMode ? onLongPressStart : undefined}
+      onMouseUp={!isEditMode ? onLongPressEnd : undefined}
+      onMouseLeave={!isEditMode ? onLongPressEnd : undefined}
+      className={`aspect-square relative group overflow-hidden bg-white/5 touch-none ${
         isEditMode ? "cursor-grab active:cursor-grabbing" : ""
       }`}
       data-testid={`photo-grid-${photo.id}`}
@@ -63,11 +71,21 @@ function SortablePhoto({ photo, isEditMode, isDragging }: SortablePhotoProps) {
         src={photo.imageUrl}
         alt="Uploaded"
         className={`w-full h-full object-cover pointer-events-none select-none ${
-          isEditMode ? "animate-wiggle" : ""
+          isEditMode ? "animate-wiggle" : "transition-transform duration-500 group-hover:scale-110"
         }`}
         loading="lazy"
         draggable={false}
       />
+      {!isEditMode && (
+        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+          <div className="text-[10px] text-white flex items-center truncate">
+            <MapPin className="w-3 h-3 mr-1 shrink-0" />
+            <span className="truncate">
+              {photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}
+            </span>
+          </div>
+        </div>
+      )}
       {isEditMode && (
         <div className="absolute inset-0 border-2 border-white/30 pointer-events-none" />
       )}
@@ -117,7 +135,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
       activationConstraint: { distance: 5 },
     }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 100, tolerance: 5 },
+      activationConstraint: { delay: 0, tolerance: 5 },
     })
   );
 
@@ -150,8 +168,7 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
     }
   }, []);
 
-  const handleGridTouchStart = useCallback(() => {
-    if (isEditMode) return;
+  const startLongPress = useCallback(() => {
     clearLongPress();
     longPressTimer.current = setTimeout(() => {
       longPressTimer.current = null;
@@ -160,10 +177,6 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
         navigator.vibrate(50);
       }
     }, 2000);
-  }, [isEditMode, clearLongPress]);
-
-  const handleGridTouchMove = useCallback(() => {
-    clearLongPress();
   }, [clearLongPress]);
 
   const activePhoto = activeId ? orderedPhotos.find((p) => p.id === activeId) : null;
@@ -196,19 +209,15 @@ export function SortablePhotoGrid({ photos: initialPhotos }: SortablePhotoGridPr
         onDragEnd={handleDragEnd}
       >
         <SortableContext items={orderedPhotos.map((p) => p.id)} strategy={rectSortingStrategy}>
-          <div
-            className="grid grid-cols-3 gap-1"
-            onTouchStart={handleGridTouchStart}
-            onTouchEnd={clearLongPress}
-            onTouchMove={handleGridTouchMove}
-            onTouchCancel={clearLongPress}
-          >
+          <div className="grid grid-cols-3 gap-1">
             {orderedPhotos.map((photo) => (
               <SortablePhoto
                 key={photo.id}
                 photo={photo}
                 isEditMode={isEditMode}
                 isDragging={activeId === photo.id}
+                onLongPressStart={startLongPress}
+                onLongPressEnd={clearLongPress}
               />
             ))}
           </div>
