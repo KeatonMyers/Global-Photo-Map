@@ -137,14 +137,16 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Full-screen photo */}
-      <img
-        src={photo.imageUrl}
-        alt="Photo"
-        data-testid="photo-preview-image"
-        className="absolute inset-0 w-full h-full object-cover"
-        draggable={false}
-      />
+      {/* Full-screen photo — original aspect ratio, no crop */}
+      <div className="absolute inset-0 flex items-center justify-center">
+        <img
+          src={photo.imageUrl}
+          alt="Photo"
+          data-testid="photo-preview-image"
+          className="max-w-full max-h-full object-contain"
+          draggable={false}
+        />
+      </div>
 
       {/* Top gradient + close button + collection badge */}
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
