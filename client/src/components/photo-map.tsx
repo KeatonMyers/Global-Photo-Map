@@ -148,8 +148,7 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
         />
       </div>
 
-      {/* Top gradient + close button + collection badge */}
-      <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
+      {/* Close button + collection badge (no overlay) */}
 
       {/* Swipe hint bar at top */}
       <div className="absolute top-3 inset-x-0 flex justify-center pointer-events-none">
@@ -172,9 +171,8 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
         </div>
       )}
 
-      {/* Bottom gradient + metadata */}
-      <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black via-black/75 to-transparent pointer-events-none" />
-      <div className="absolute inset-x-0 bottom-0 p-5 pb-safe" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))" }}>
+      {/* Bottom metadata — transparent, text shadow for readability */}
+      <div className="absolute inset-x-0 bottom-0 p-5 pb-safe" style={{ paddingBottom: "max(20px, env(safe-area-inset-bottom))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
         {/* Avatar + name + date */}
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="w-11 h-11 border-2 border-white/30 shrink-0">
