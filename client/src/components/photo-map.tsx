@@ -146,18 +146,29 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
         draggable={false}
       />
 
-      {/* Top gradient + collection badge */}
+      {/* Top gradient + close button + collection badge */}
       <div className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-black/60 to-transparent pointer-events-none" />
-      {photo.collection && (
-        <div className="absolute top-safe top-12 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
-          {photo.collection.name}
-        </div>
-      )}
 
       {/* Swipe hint bar at top */}
       <div className="absolute top-3 inset-x-0 flex justify-center pointer-events-none">
         <div className="w-10 h-1 rounded-full bg-white/40" />
       </div>
+
+      {/* Close button */}
+      <button
+        data-testid="button-close-photo"
+        onClick={() => dismiss()}
+        className="absolute top-10 left-4 w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center border border-white/20 active:bg-white/20 transition-colors"
+        style={{ paddingTop: "env(safe-area-inset-top)" }}
+      >
+        <span className="text-white text-lg leading-none font-light">✕</span>
+      </button>
+
+      {photo.collection && (
+        <div className="absolute top-10 right-4 px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-xs font-semibold text-white border border-white/20">
+          {photo.collection.name}
+        </div>
+      )}
 
       {/* Bottom gradient + metadata */}
       <div className="absolute inset-x-0 bottom-0 h-56 bg-gradient-to-t from-black via-black/75 to-transparent pointer-events-none" />
@@ -253,14 +264,23 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
           chunkedLoading
           iconCreateFunction={createClusterIcon}
           maxClusterRadius={50}
-          spiderfyOnMaxZoom={true}
+          spiderfyOnMaxZoom={false}
+          showCoverageOnHover={false}
+          animate={false}
+          polygonOptions={{ interactive: false, opacity: 0, fillOpacity: 0 }}
         >
           {photos?.map((photo) => (
             <Marker
               key={photo.id}
               position={[photo.latitude, photo.longitude]}
               icon={createCustomIcon(photo.imageUrl)}
-              eventHandlers={{ click: () => setSelectedPhoto(photo) }}
+              eventHandlers={{
+                click: () => setSelectedPhoto(photo),
+                touchend: (e: any) => {
+                  e.originalEvent?.stopPropagation?.();
+                  setSelectedPhoto(photo);
+                },
+              }}
             />
           ))}
         </MarkerClusterGroup>

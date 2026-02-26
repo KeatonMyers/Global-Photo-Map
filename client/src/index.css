@@ -50,6 +50,18 @@
   border: none !important;
 }
 
+/* Prevent cluster plugin overlays from intercepting taps on markers */
+.leaflet-cluster-anim .leaflet-marker-icon,
+.leaflet-cluster-anim .leaflet-marker-shadow {
+  pointer-events: none;
+}
+.leaflet-marker-shadow {
+  pointer-events: none !important;
+}
+.leaflet-pane.leaflet-shadow-pane {
+  pointer-events: none !important;
+}
+
 
 
 /* Photo dart animation */
