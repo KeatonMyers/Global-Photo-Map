@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import "leaflet/dist/leaflet.css";
-import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, GeoJSON, useMap } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import L from "leaflet";
 import { usePhotos } from "@/hooks/use-photos";
@@ -32,6 +32,88 @@ function FlyToLocation({ coords }: { coords: [number, number] | null }) {
     map.flyTo(coords, 8, { duration: 1.5 });
   }, [coords, map]);
   return null;
+}
+
+const COUNTRY_NAME_MAP: Record<string, string> = {
+  "United States": "United States of America",
+  "USA": "United States of America",
+  "US": "United States of America",
+  "UK": "United Kingdom",
+  "England": "United Kingdom",
+  "Scotland": "United Kingdom",
+  "Wales": "United Kingdom",
+  "Northern Ireland": "United Kingdom",
+  "Russia": "Russia",
+  "South Korea": "South Korea",
+  "North Korea": "North Korea",
+  "Czech Republic": "Czech Republic",
+  "Czechia": "Czech Republic",
+  "DR Congo": "Democratic Republic of the Congo",
+  "Republic of the Congo": "Republic of the Congo",
+  "Tanzania": "United Republic of Tanzania",
+  "Ivory Coast": "Ivory Coast",
+  "Côte d'Ivoire": "Ivory Coast",
+  "The Netherlands": "Netherlands",
+  "Nederland": "Netherlands",
+};
+
+function normalizeCountryName(name: string): string {
+  const trimmed = name.trim();
+  return COUNTRY_NAME_MAP[trimmed] || trimmed;
+}
+
+function HighlightedCountries({ visitedCountries }: { visitedCountries: Set<string> }) {
+  const [geoData, setGeoData] = useState<any>(null);
+
+  useEffect(() => {
+    fetch("/countries.geo.json")
+      .then((res) => res.json())
+      .then(setGeoData)
+      .catch(() => {});
+  }, []);
+
+  const highlightStyle = useMemo(
+    () => ({
+      color: "rgba(255, 255, 255, 0.5)",
+      weight: 1.5,
+      fillColor: "rgba(200, 210, 220, 0.15)",
+      fillOpacity: 1,
+    }),
+    []
+  );
+
+  const defaultStyle = useMemo(
+    () => ({
+      color: "transparent",
+      weight: 0,
+      fillColor: "transparent",
+      fillOpacity: 0,
+    }),
+    []
+  );
+
+  const onEachFeature = useMemo(() => {
+    return (feature: any, layer: any) => {
+      const name = feature?.properties?.name;
+      if (name && visitedCountries.has(normalizeCountryName(name))) {
+        layer.setStyle(highlightStyle);
+      } else {
+        layer.setStyle(defaultStyle);
+      }
+    };
+  }, [visitedCountries, highlightStyle, defaultStyle]);
+
+  if (!geoData || visitedCountries.size === 0) return null;
+
+  return (
+    <GeoJSON
+      key={Array.from(visitedCountries).sort().join(",")}
+      data={geoData}
+      onEachFeature={onEachFeature}
+      style={defaultStyle}
+      interactive={false}
+    />
+  );
 }
 
 const createCustomIcon = (imageUrl: string) => {
@@ -215,6 +297,16 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
   const { data: photos } = usePhotos();
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
 
+  const visitedCountries = useMemo(() => {
+    const set = new Set<string>();
+    if (photos) {
+      for (const p of photos) {
+        if (p.country) set.add(normalizeCountryName(p.country));
+      }
+    }
+    return set;
+  }, [photos]);
+
   return (
     <>
       <div className="absolute inset-0 z-0 bg-[#081627]">
@@ -245,6 +337,8 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
             attribution=""
             zIndex={3}
           />
+
+          <HighlightedCountries visitedCountries={visitedCountries} />
 
           <MapEvents onBoundsChange={setBounds} />
           <FlyToLocation coords={flyToCoords ?? null} />
