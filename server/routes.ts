@@ -84,6 +84,18 @@ export async function registerRoutes(
     res.json(collection);
   });
 
+  app.get("/api/feed", async (req, res) => {
+    try {
+      const limit = Math.min(Number(req.query.limit) || 20, 50);
+      const offset = Number(req.query.offset) || 0;
+      const feedPhotos = await storage.getFeedPhotos(limit, offset);
+      res.json(feedPhotos);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch feed" });
+    }
+  });
+
   app.patch("/api/photos/reorder", isAuthenticated, async (req: any, res) => {
     try {
       const schema = z.object({

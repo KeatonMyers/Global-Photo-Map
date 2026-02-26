@@ -35,7 +35,7 @@ This shared layer is the key architectural decision: the API contract (`shared/r
 ### Frontend
 
 - **Framework:** React 18 with TypeScript, bundled by Vite
-- **Routing:** `wouter` (lightweight client-side routing) with two main pages: `/` (map) and `/profile`
+- **Routing:** `wouter` (lightweight client-side routing) with three main pages: `/` (map), `/feed` (Instagram-style photo feed), and `/profile`
 - **State/Data fetching:** TanStack Query (React Query) v5 — all server state is fetched and cached via custom hooks (`use-photos`, `use-collections`, `use-auth`)
 - **UI components:** shadcn/ui (Radix UI primitives + Tailwind CSS). The "new-york" style variant is used. All UI components live in `client/src/components/ui/`
 - **Map:** Leaflet via `react-leaflet` with `react-leaflet-cluster` for marker clustering. Custom photo-thumbnail markers are rendered as Leaflet `divIcon` elements with Apple Photos–style frames and tail pointers.

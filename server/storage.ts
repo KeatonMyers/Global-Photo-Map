@@ -1,6 +1,6 @@
 import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users } from "@shared/schema";
 import { db } from "./db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -13,6 +13,9 @@ export interface IStorage {
   getPhoto(id: number): Promise<(Photo & { user?: any, collection?: any }) | undefined>;
   createPhoto(userId: string, photo: InsertPhoto): Promise<Photo>;
   deletePhoto(id: number, userId: string): Promise<boolean>;
+
+  // Feed
+  getFeedPhotos(limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]>;
 
   // Users
   updateUserProfileImage(userId: string, imageUrl: string): Promise<void>;
@@ -113,6 +116,25 @@ export class DatabaseStorage implements IStorage {
         .set({ sortOrder: i })
         .where(and(eq(photos.id, photoIds[i]), eq(photos.userId, userId)));
     }
+  }
+
+  async getFeedPhotos(limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]> {
+    const results = await db.select({
+      photo: photos,
+      user: users,
+      collection: collections,
+    }).from(photos)
+      .leftJoin(users, eq(photos.userId, users.id))
+      .leftJoin(collections, eq(photos.collectionId, collections.id))
+      .orderBy(desc(photos.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return results.map(r => ({
+      ...r.photo,
+      user: r.user || undefined,
+      collection: r.collection || undefined,
+    }));
   }
 
   async backfillPhotoCountries(): Promise<void> {
