@@ -114,6 +114,29 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/search", async (req, res) => {
+    try {
+      const q = String(req.query.q || "").trim();
+      if (q.length === 0) return res.json([]);
+      const results = await storage.searchUsers(q);
+      res.json(results);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to search users" });
+    }
+  });
+
+  app.get("/api/users/:id", async (req, res) => {
+    try {
+      const user = await storage.getUserWithPhotoCount(req.params.id);
+      if (!user) return res.status(404).json({ message: "User not found" });
+      res.json(user);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch user" });
+    }
+  });
+
   app.patch("/api/auth/profile-image", isAuthenticated, async (req: any, res) => {
     try {
       const { imageUrl } = req.body;

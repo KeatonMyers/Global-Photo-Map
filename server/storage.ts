@@ -1,6 +1,6 @@
 import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql } from "drizzle-orm";
 
 export interface IStorage {
   // Collections
@@ -20,6 +20,8 @@ export interface IStorage {
   // Users
   updateUserProfileImage(userId: string, imageUrl: string): Promise<void>;
   reorderPhotos(userId: string, photoIds: number[]): Promise<void>;
+  searchUsers(query: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null }[]>;
+  getUserWithPhotoCount(userId: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null; photoCount: number } | undefined>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -135,6 +137,44 @@ export class DatabaseStorage implements IStorage {
       user: r.user || undefined,
       collection: r.collection || undefined,
     }));
+  }
+
+  async searchUsers(query: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null }[]> {
+    if (!query || query.trim().length === 0) return [];
+    const pattern = `%${query.trim()}%`;
+    const results = await db
+      .select({
+        id: users.id,
+        firstName: users.firstName,
+        lastName: users.lastName,
+        profileImageUrl: users.profileImageUrl,
+      })
+      .from(users)
+      .where(
+        or(
+          ilike(users.firstName, pattern),
+          ilike(users.lastName, pattern),
+          ilike(sql`COALESCE(${users.firstName}, '') || ' ' || COALESCE(${users.lastName}, '')`, pattern)
+        )
+      )
+      .limit(20);
+    return results;
+  }
+
+  async getUserWithPhotoCount(userId: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null; photoCount: number } | undefined> {
+    const user = await db.select().from(users).where(eq(users.id, userId)).limit(1);
+    if (user.length === 0) return undefined;
+    const photoCountResult = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(photos)
+      .where(eq(photos.userId, userId));
+    return {
+      id: user[0].id,
+      firstName: user[0].firstName,
+      lastName: user[0].lastName,
+      profileImageUrl: user[0].profileImageUrl,
+      photoCount: photoCountResult[0]?.count || 0,
+    };
   }
 
   async backfillPhotoCountries(): Promise<void> {

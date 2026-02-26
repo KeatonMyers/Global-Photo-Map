@@ -12,6 +12,8 @@ PhotoMap is a mobile-first web application that lets users upload geotagged phot
 5. Click on a country card to see all photos taken in that country
 6. Upload a custom profile picture by tapping the avatar circle
 7. Long-press (2 seconds) on any photo in the grid to enter reorder mode, drag to rearrange, tap Done to save
+8. Search for other users by name via the Search tab
+9. View another user's profile and their photos/countries
 
 ---
 
@@ -35,7 +37,7 @@ This shared layer is the key architectural decision: the API contract (`shared/r
 ### Frontend
 
 - **Framework:** React 18 with TypeScript, bundled by Vite
-- **Routing:** `wouter` (lightweight client-side routing) with three main pages: `/` (map), `/feed` (Instagram-style photo feed), and `/profile`
+- **Routing:** `wouter` (lightweight client-side routing) with pages: `/` (map), `/feed` (Instagram-style photo feed), `/profile`, `/search` (user search), and `/user/:id` (other user's profile)
 - **State/Data fetching:** TanStack Query (React Query) v5 — all server state is fetched and cached via custom hooks (`use-photos`, `use-collections`, `use-auth`)
 - **UI components:** shadcn/ui (Radix UI primitives + Tailwind CSS). The "new-york" style variant is used. All UI components live in `client/src/components/ui/`
 - **Map:** Leaflet via `react-leaflet` with `react-leaflet-cluster` for marker clustering. Custom photo-thumbnail markers are rendered as Leaflet `divIcon` elements with Apple Photos–style frames and tail pointers.
