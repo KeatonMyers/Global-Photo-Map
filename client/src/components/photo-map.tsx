@@ -142,7 +142,7 @@ function FullScreenPhoto({ photo, onClose }: FullScreenPhotoProps) {
         src={photo.imageUrl}
         alt="Photo"
         data-testid="photo-preview-image"
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-contain"
         draggable={false}
       />
 
