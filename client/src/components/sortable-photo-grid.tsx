@@ -56,9 +56,13 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
     opacity: isDragging ? 0.3 : 1,
   };
 
+  const touchStartTime = useRef(0);
+  const TAP_DURATION = 200;
+
   const handleTouchStartLocal = useCallback((e: React.TouchEvent) => {
     touchMovedRef.current = false;
     touchStartPos.current = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+    touchStartTime.current = Date.now();
     onLongPressStart();
   }, [onLongPressStart]);
 
@@ -77,12 +81,9 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
     onLongPressEnd();
     touchStartPos.current = null;
     if (isEditMode || touchMovedRef.current) return;
-    const now = Date.now();
-    if (now - lastTapRef.current < 350) {
-      lastTapRef.current = 0;
+    const elapsed = Date.now() - touchStartTime.current;
+    if (elapsed < TAP_DURATION) {
       onDoubleTap();
-    } else {
-      lastTapRef.current = now;
     }
   }, [isEditMode, onDoubleTap, onLongPressEnd]);
 
@@ -100,8 +101,8 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
       onMouseUp={!isEditMode ? onLongPressEnd : undefined}
       onMouseLeave={!isEditMode ? onLongPressEnd : undefined}
       onDoubleClick={!isEditMode ? onDoubleTap : undefined}
-      className={`aspect-square relative group overflow-hidden bg-white/5 touch-none ${
-        isEditMode ? "cursor-grab active:cursor-grabbing" : ""
+      className={`aspect-square relative group overflow-hidden bg-white/5 ${
+        isEditMode ? "touch-none cursor-grab active:cursor-grabbing" : ""
       }`}
       data-testid={`photo-grid-${photo.id}`}
     >
