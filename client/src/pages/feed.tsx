@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import type { PhotoResponse } from "@shared/schema";
+import { PinchZoomImage } from "@/components/pinch-zoom-image";
 
 const PAGE_SIZE = 20;
 
@@ -53,15 +54,13 @@ function FeedCard({ photo }: { photo: PhotoResponse }) {
         </div>
       </div>
 
-      <div className="relative w-full bg-black/30">
-        <img
-          src={photo.imageUrl}
-          alt={photo.locationName || "Photo"}
-          className="w-full object-contain max-h-[600px]"
-          loading="lazy"
-          data-testid={`feed-image-${photo.id}`}
-        />
-      </div>
+      <PinchZoomImage
+        src={photo.imageUrl}
+        alt={photo.locationName || "Photo"}
+        className="relative w-full bg-black/30"
+        imgClassName="w-full object-contain max-h-[600px]"
+        data-testid={`feed-image-${photo.id}`}
+      />
 
       <div className="p-3 flex items-center gap-2">
         {photo.locationName && (

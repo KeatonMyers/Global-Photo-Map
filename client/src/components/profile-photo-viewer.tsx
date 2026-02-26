@@ -2,6 +2,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { format } from "date-fns";
 import type { Photo } from "@shared/schema";
+import { PinchZoomImage } from "./pinch-zoom-image";
 
 type PhotoItem = Photo & { user?: any; collection?: any };
 
@@ -20,6 +21,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
   const [isDragging, setIsDragging] = useState(false);
   const [exiting, setExiting] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right" | null>(null);
+  const [isZoomed, setIsZoomed] = useState(false);
   const touchStartRef = useRef<{ x: number; y: number; time: number } | null>(null);
   const directionLocked = useRef<"horizontal" | "vertical" | null>(null);
   const latestDx = useRef(0);
@@ -39,6 +41,10 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
       if (slideTimer.current) clearTimeout(slideTimer.current);
     };
   }, []);
+
+  useEffect(() => {
+    setIsZoomed(false);
+  }, [currentIndex]);
 
   const dismiss = useCallback(() => {
     setExiting(true);
@@ -60,6 +66,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
   }, [currentIndex, photos.length]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    if (isZoomed || e.touches.length > 1) return;
     touchStartRef.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, time: Date.now() };
     directionLocked.current = null;
     latestDx.current = 0;
@@ -67,7 +74,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (!touchStartRef.current) return;
+    if (isZoomed || e.touches.length > 1 || !touchStartRef.current) return;
     const dx = e.touches[0].clientX - touchStartRef.current.x;
     const dy = e.touches[0].clientY - touchStartRef.current.y;
 
@@ -90,6 +97,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
   };
 
   const handleTouchEnd = () => {
+    if (isZoomed) return;
     setIsDragging(false);
     if (!touchStartRef.current) return;
 
@@ -147,11 +155,12 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
           transition: slideDirection ? "transform 0.2s ease-out" : "none",
         }}
       >
-        <img
+        <PinchZoomImage
           src={photo.imageUrl}
           alt="Photo"
-          className="max-w-full max-h-full object-contain"
-          draggable={false}
+          className="w-full h-full flex items-center justify-center"
+          imgClassName="max-w-full max-h-full object-contain"
+          onGestureStateChange={setIsZoomed}
           data-testid="profile-photo-fullscreen"
         />
       </div>
@@ -166,7 +175,7 @@ export function ProfilePhotoViewer({ photos, initialIndex, onClose }: ProfilePho
         </div>
       )}
 
-      <div className="absolute inset-x-0 bottom-0 p-5" style={{ paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 12px))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
+      <div className="absolute inset-x-0 bottom-0 p-5 pointer-events-none" style={{ paddingBottom: "max(32px, calc(env(safe-area-inset-bottom) + 12px))", textShadow: "0 1px 4px rgba(0,0,0,0.8)" }}>
         {photo.locationName && (
           <div className="font-bold text-white text-lg leading-tight truncate mb-1">
             {photo.locationName}
