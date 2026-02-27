@@ -17,6 +17,7 @@ export const photos = pgTable("photos", {
   id: serial("id").primaryKey(),
   userId: varchar("user_id").notNull(),
   imageUrl: text("image_url").notNull(),
+  thumbnailUrl: text("thumbnail_url"),
   latitude: doublePrecision("latitude").notNull(),
   longitude: doublePrecision("longitude").notNull(),
   locationName: text("location_name"),

@@ -64,6 +64,7 @@ export default function SearchPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/map-markers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
   });
@@ -79,6 +80,7 @@ export default function SearchPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/friends"] });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/map-markers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
   });

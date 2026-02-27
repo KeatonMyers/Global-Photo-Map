@@ -1,6 +1,7 @@
 import { collections, photos, type Collection, type InsertCollection, type Photo, type InsertPhoto, users, friendships } from "@shared/schema";
 import { db } from "./db";
-import { eq, and, desc, or, ilike, sql, inArray } from "drizzle-orm";
+import { eq, and, desc, or, ilike, sql, inArray, isNull } from "drizzle-orm";
+import { generateThumbnail } from "./thumbnail";
 
 export interface IStorage {
   // Collections
@@ -30,6 +31,12 @@ export interface IStorage {
   isFriend(userId: string, friendId: string): Promise<boolean>;
   getFriendsPhotos(userId: string): Promise<(Photo & { user?: any, collection?: any })[]>;
   getFriendsFeedPhotos(userId: string, limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]>;
+
+  // Map markers (lightweight, no full imageUrl)
+  getFriendsMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]>;
+
+  // Thumbnail backfill
+  backfillThumbnails(): Promise<number>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -98,7 +105,15 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createPhoto(userId: string, photo: InsertPhoto): Promise<Photo> {
-    const [newPhoto] = await db.insert(photos).values({ ...photo, userId }).returning();
+    let thumbnailUrl: string | null = null;
+    if (photo.imageUrl && photo.imageUrl.startsWith("data:image/")) {
+      try {
+        thumbnailUrl = await generateThumbnail(photo.imageUrl);
+      } catch (e) {
+        console.error("Failed to generate thumbnail:", e);
+      }
+    }
+    const [newPhoto] = await db.insert(photos).values({ ...photo, userId, thumbnailUrl }).returning();
     return newPhoto;
   }
 
@@ -250,6 +265,44 @@ export class DatabaseStorage implements IStorage {
       user: r.user || undefined,
       collection: r.collection || undefined,
     }));
+  }
+
+  async getFriendsMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]> {
+    const friendIds = await this.getFriendIds(userId);
+    const allIds = [userId, ...friendIds];
+    if (allIds.length === 0) return [];
+    const results = await db.select({
+      id: photos.id,
+      userId: photos.userId,
+      thumbnailUrl: photos.thumbnailUrl,
+      latitude: photos.latitude,
+      longitude: photos.longitude,
+      locationName: photos.locationName,
+      country: photos.country,
+      takenAt: photos.takenAt,
+    }).from(photos)
+      .where(inArray(photos.userId, allIds));
+    return results;
+  }
+
+  async backfillThumbnails(): Promise<number> {
+    const photosWithoutThumbnails = await db.select({
+      id: photos.id,
+      imageUrl: photos.imageUrl,
+    }).from(photos).where(isNull(photos.thumbnailUrl));
+
+    let count = 0;
+    for (const photo of photosWithoutThumbnails) {
+      if (!photo.imageUrl.startsWith("data:image/")) continue;
+      try {
+        const thumbnail = await generateThumbnail(photo.imageUrl);
+        await db.update(photos).set({ thumbnailUrl: thumbnail }).where(eq(photos.id, photo.id));
+        count++;
+      } catch (e) {
+        console.error(`Failed to generate thumbnail for photo ${photo.id}:`, e);
+      }
+    }
+    return count;
   }
 
   async backfillPhotoCountries(): Promise<void> {

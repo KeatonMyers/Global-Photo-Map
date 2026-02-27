@@ -62,6 +62,7 @@ export function useCreatePhoto() {
       queryClient.invalidateQueries({ queryKey: [api.photos.list.path], exact: false });
       queryClient.invalidateQueries({ queryKey: [api.collections.list.path], exact: false });
       queryClient.invalidateQueries({ queryKey: ["/api/friends/photos"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/map-markers"] });
       queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
   });
@@ -84,6 +85,8 @@ export function useDeletePhoto() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.photos.list.path] });
+      queryClient.invalidateQueries({ queryKey: ["/api/friends/map-markers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/feed"] });
     },
   });
 }

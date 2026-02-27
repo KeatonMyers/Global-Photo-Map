@@ -61,7 +61,7 @@ This shared layer is the key architectural decision: the API contract (`shared/r
   - `users` – Replit Auth user profiles (id, email, firstName, lastName, profileImageUrl)
   - `sessions` – PostgreSQL-backed session store for express-session (required by Replit Auth)
   - `collections` – User-created trip/album groupings (userId, name, description)
-  - `photos` – Core data: userId, imageUrl (Base64 or URL), latitude, longitude, locationName, country, takenAt, collectionId
+  - `photos` – Core data: userId, imageUrl (Base64 or URL), thumbnailUrl (small 80x80 JPEG for map markers), latitude, longitude, locationName, country, takenAt, collectionId
   - `friendships` – One-way friend relationships: userId → friendId
 - **Migrations:** `drizzle-kit push` is used for schema pushes (no migration files needed in dev)
 
@@ -109,6 +109,7 @@ Both the server handlers and client hooks import from this object, so changing a
 | `date-fns` | Date formatting |
 | `zod` | Runtime validation (shared between client and server) |
 | `memoizee` | Memoize OIDC config discovery (1-hour cache) |
+| `sharp` | Server-side image processing for generating photo thumbnails |
 
 ### External Services / APIs
 - **Nominatim (OpenStreetMap)** – Free geocoding API, called client-side when user types a location name instead of relying on EXIF GPS. No API key required; uses `User-Agent` header.

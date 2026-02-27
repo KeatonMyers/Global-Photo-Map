@@ -113,6 +113,17 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/friends/map-markers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.user.claims.sub;
+      const markers = await storage.getFriendsMapMarkers(userId);
+      res.json(markers);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch map markers" });
+    }
+  });
+
   app.post("/api/friends/:friendId", isAuthenticated, async (req: any, res) => {
     try {
       const userId = req.user.claims.sub;
@@ -189,6 +200,10 @@ export async function registerRoutes(
       res.status(500).json({ message: "Failed to fetch user" });
     }
   });
+
+  storage.backfillThumbnails().then(count => {
+    if (count > 0) console.log(`Backfilled ${count} photo thumbnails`);
+  }).catch(err => console.error("Thumbnail backfill failed:", err));
 
   app.patch("/api/auth/profile-image", isAuthenticated, async (req: any, res) => {
     try {

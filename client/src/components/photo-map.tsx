@@ -6,9 +6,20 @@ import L from "leaflet";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Calendar, MapPin } from "lucide-react";
+import { Calendar, MapPin, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import type { PhotoResponse } from "@shared/schema";
+
+type MapMarker = {
+  id: number;
+  userId: string;
+  thumbnailUrl: string | null;
+  latitude: number;
+  longitude: number;
+  locationName: string | null;
+  country: string | null;
+  takenAt: Date | null;
+};
 
 function MapEvents({ onBoundsChange }: { onBoundsChange: (bounds: string) => void }) {
   const map = useMap();
@@ -117,12 +128,15 @@ function HighlightedCountries({ visitedCountries }: { visitedCountries: Set<stri
   );
 }
 
-const createCustomIcon = (imageUrl: string) => {
+const createCustomIcon = (thumbnailUrl: string | null) => {
+  const imgStyle = thumbnailUrl
+    ? `background-image: url('${thumbnailUrl}')`
+    : `background: linear-gradient(135deg, #3b82f6, #8b5cf6)`;
   return L.divIcon({
     html: `
       <div class="photo-marker-container">
         <div class="photo-marker-frame">
-          <div class="photo-marker-img" style="background-image: url('${imageUrl}')"></div>
+          <div class="photo-marker-img" style="${imgStyle}"></div>
         </div>
         <div class="photo-marker-tail"></div>
       </div>
@@ -137,14 +151,16 @@ const createCustomIcon = (imageUrl: string) => {
 const createClusterIcon = (cluster: any) => {
   const children = cluster.getAllChildMarkers();
   const firstHtml: string = children[0]?.options?.icon?.options?.html ?? "";
-  const match = firstHtml.match(/background-image:\s*url\((['"]?)([\s\S]*?)\1\)/);
-  const imageUrl = match?.[2] ?? "";
+  const matchBg = firstHtml.match(/background-image:\s*url\((['"]?)([\s\S]*?)\1\)/);
+  const imgStyle = matchBg
+    ? `background-image: url('${matchBg[2]}')`
+    : `background: linear-gradient(135deg, #3b82f6, #8b5cf6)`;
 
   return L.divIcon({
     html: `
       <div class="photo-marker-container">
         <div class="photo-marker-frame">
-          <div class="photo-marker-img" style="background-image: url('${imageUrl}')"></div>
+          <div class="photo-marker-img" style="${imgStyle}"></div>
         </div>
         <div class="photo-marker-tail"></div>
       </div>
@@ -296,26 +312,41 @@ interface PhotoMapProps {
 export function PhotoMap({ flyToCoords }: PhotoMapProps) {
   const [, setBounds] = useState<string>("");
   const { user } = useAuth();
-  const { data: photos } = useQuery<PhotoResponse[]>({
-    queryKey: ["/api/friends/photos"],
+  const { data: markers } = useQuery<MapMarker[]>({
+    queryKey: ["/api/friends/map-markers"],
     queryFn: async () => {
-      const res = await fetch("/api/friends/photos", { credentials: "include" });
-      if (!res.ok) throw new Error("Failed to fetch photos");
+      const res = await fetch("/api/friends/map-markers", { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch map markers");
       return res.json();
     },
     enabled: !!user,
   });
   const [selectedPhoto, setSelectedPhoto] = useState<PhotoResponse | null>(null);
+  const [loadingPhotoId, setLoadingPhotoId] = useState<number | null>(null);
+
+  const handleMarkerClick = async (markerId: number) => {
+    setLoadingPhotoId(markerId);
+    try {
+      const res = await fetch(`/api/photos/${markerId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch photo");
+      const photo = await res.json();
+      setSelectedPhoto(photo);
+    } catch (err) {
+      console.error("Failed to load photo:", err);
+    } finally {
+      setLoadingPhotoId(null);
+    }
+  };
 
   const visitedCountries = useMemo(() => {
     const set = new Set<string>();
-    if (photos) {
-      for (const p of photos) {
-        if (p.country) set.add(normalizeCountryName(p.country));
+    if (markers) {
+      for (const m of markers) {
+        if (m.country) set.add(normalizeCountryName(m.country));
       }
     }
     return set;
-  }, [photos]);
+  }, [markers]);
 
   return (
     <>
@@ -362,16 +393,16 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
             animate={false}
             polygonOptions={{ interactive: false, opacity: 0, fillOpacity: 0 }}
           >
-            {photos?.map((photo) => (
+            {markers?.map((marker) => (
               <Marker
-                key={photo.id}
-                position={[photo.latitude, photo.longitude]}
-                icon={createCustomIcon(photo.imageUrl)}
+                key={marker.id}
+                position={[marker.latitude, marker.longitude]}
+                icon={createCustomIcon(marker.thumbnailUrl)}
                 eventHandlers={{
-                  click: () => setSelectedPhoto(photo),
+                  click: () => handleMarkerClick(marker.id),
                   touchend: (e: any) => {
                     e.originalEvent?.stopPropagation?.();
-                    setSelectedPhoto(photo);
+                    handleMarkerClick(marker.id);
                   },
                 }}
               />
@@ -379,6 +410,12 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
           </MarkerClusterGroup>
         </MapContainer>
       </div>
+
+      {loadingPhotoId && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/60 backdrop-blur-sm" data-testid="photo-loading-overlay">
+          <Loader2 className="w-10 h-10 text-white animate-spin" />
+        </div>
+      )}
 
       {selectedPhoto && (
         <FullScreenPhoto
