@@ -1,13 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRoute, useLocation } from "wouter";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/bottom-nav";
 import { ProfilePhotoViewer } from "@/components/profile-photo-viewer";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ArrowLeft, Loader2, MapPin, Globe, UserPlus, UserCheck } from "lucide-react";
+import { ArrowLeft, Loader2, MapPin, Globe, UserPlus, UserCheck, Map as MapIcon, Layers, Users } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Photo } from "@shared/schema";
+import { DateStamp } from "@/components/date-stamp";
+import "leaflet/dist/leaflet.css";
+import { MapContainer, TileLayer, Marker, useMap } from "react-leaflet";
+import L from "leaflet";
 
 interface UserProfile {
   id: string;
@@ -15,6 +19,13 @@ interface UserProfile {
   lastName: string | null;
   profileImageUrl: string | null;
   photoCount: number;
+}
+
+interface FriendProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
 }
 
 function getCountryFromPhoto(photo: Photo & { country?: string | null; locationName?: string | null }): string {
@@ -32,6 +43,89 @@ interface CountryGroup {
   coverPhoto: Photo & { user?: any; collection?: any };
 }
 
+const createMapMarker = (thumbnailUrl: string | null, borderColor: string = "white") => {
+  const imgStyle = thumbnailUrl
+    ? `background-image: url('${thumbnailUrl}'); background-size: cover; background-position: center;`
+    : `background: linear-gradient(135deg, #3b82f6, #8b5cf6)`;
+  return L.divIcon({
+    html: `
+      <div class="photo-marker-container">
+        <div class="photo-marker-frame" style="border-color: ${borderColor};">
+          <div class="photo-marker-img" style="${imgStyle}"></div>
+        </div>
+        <div class="photo-marker-tail" style="border-top-color: ${borderColor};"></div>
+      </div>
+    `,
+    className: "custom-leaflet-icon",
+    iconSize: [68, 80],
+    iconAnchor: [34, 80],
+  });
+};
+
+function FitBounds({ photos }: { photos: Photo[] }) {
+  const map = useMap();
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (fitted.current || photos.length === 0) return;
+    fitted.current = true;
+    const bounds = L.latLngBounds(photos.map(p => [p.latitude, p.longitude]));
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 });
+  }, [photos, map]);
+  return null;
+}
+
+interface UserMapProps {
+  photos: Photo[];
+  myPhotos?: Photo[];
+  showOverlay: boolean;
+}
+
+function UserMap({ photos, myPhotos, showOverlay }: UserMapProps) {
+  const allPhotos = showOverlay && myPhotos ? [...photos, ...myPhotos] : photos;
+
+  if (photos.length === 0) {
+    return (
+      <div className="flex items-center justify-center h-full text-muted-foreground text-sm">
+        No photos to show on map
+      </div>
+    );
+  }
+
+  return (
+    <MapContainer
+      center={[20, 0]}
+      zoom={2}
+      className="w-full h-full rounded-xl"
+      zoomControl={false}
+      style={{ background: "#081627" }}
+    >
+      <TileLayer
+        url="https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}{r}.png"
+        attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+      />
+      <TileLayer
+        url="https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}{r}.png"
+        attribution=""
+      />
+      <FitBounds photos={allPhotos} />
+      {photos.map((photo) => (
+        <Marker
+          key={`user-${photo.id}`}
+          position={[photo.latitude, photo.longitude]}
+          icon={createMapMarker((photo as any).thumbnailUrl || null, "white")}
+        />
+      ))}
+      {showOverlay && myPhotos?.map((photo) => (
+        <Marker
+          key={`my-${photo.id}`}
+          position={[photo.latitude, photo.longitude]}
+          icon={createMapMarker((photo as any).thumbnailUrl || null, "#222")}
+        />
+      ))}
+    </MapContainer>
+  );
+}
+
 export default function UserProfilePage() {
   const [, params] = useRoute("/user/:id");
   const [, navigate] = useLocation();
@@ -40,6 +134,7 @@ export default function UserProfilePage() {
   const userId = params?.id;
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState<number | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
+  const [showOverlay, setShowOverlay] = useState(false);
 
   const { data: friendIds } = useQuery<string[]>({
     queryKey: ["/api/friends"],
@@ -95,6 +190,26 @@ export default function UserProfilePage() {
     queryFn: async () => {
       const res = await fetch(`/api/photos?userId=${userId}`);
       if (!res.ok) throw new Error("Failed to load photos");
+      return res.json();
+    },
+    enabled: !!userId,
+  });
+
+  const { data: myPhotos } = useQuery<(Photo & { user?: any; collection?: any })[]>({
+    queryKey: ["/api/photos", { userId: user?.id }],
+    queryFn: async () => {
+      const res = await fetch(`/api/photos?userId=${user?.id}`);
+      if (!res.ok) throw new Error("Failed to load photos");
+      return res.json();
+    },
+    enabled: !!user?.id && !isSelf,
+  });
+
+  const { data: userFriends } = useQuery<FriendProfile[]>({
+    queryKey: ["/api/users", userId, "friends"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${userId}/friends`);
+      if (!res.ok) throw new Error("Failed to load friends");
       return res.json();
     },
     enabled: !!userId,
@@ -157,7 +272,7 @@ export default function UserProfilePage() {
           </Avatar>
 
           <div className="flex-1 min-w-0">
-            <h1 className="text-base font-semibold text-white truncate" data-testid="text-user-name">
+            <h1 className="text-base font-normal text-white truncate" data-testid="text-user-name">
               {name}
             </h1>
           </div>
@@ -197,10 +312,16 @@ export default function UserProfilePage() {
       <Tabs defaultValue="photos" className="px-4">
         <TabsList className="w-full bg-white/5 border border-white/10">
           <TabsTrigger value="photos" className="flex-1 data-[state=active]:bg-white/10" data-testid="tab-photos">
-            <MapPin className="w-4 h-4 mr-1" /> Photos
+            <MapPin className="w-3.5 h-3.5 mr-1" /> Photos
           </TabsTrigger>
           <TabsTrigger value="countries" className="flex-1 data-[state=active]:bg-white/10" data-testid="tab-countries">
-            <Globe className="w-4 h-4 mr-1" /> Countries
+            <Globe className="w-3.5 h-3.5 mr-1" /> Countries
+          </TabsTrigger>
+          <TabsTrigger value="friends" className="flex-1 data-[state=active]:bg-white/10" data-testid="tab-friends">
+            <Users className="w-3.5 h-3.5 mr-1" /> Friends
+          </TabsTrigger>
+          <TabsTrigger value="map" className="flex-1 data-[state=active]:bg-white/10" data-testid="tab-map">
+            <MapIcon className="w-3.5 h-3.5 mr-1" /> Map
           </TabsTrigger>
         </TabsList>
 
@@ -224,6 +345,9 @@ export default function UserProfilePage() {
                     className="w-full h-full object-cover"
                     loading="lazy"
                   />
+                  <div className="absolute bottom-1 right-1 pointer-events-none">
+                    <DateStamp date={photo.takenAt || photo.createdAt} size="sm" />
+                  </div>
                 </button>
               ))}
             </div>
@@ -254,6 +378,9 @@ export default function UserProfilePage() {
                       className="w-full h-full object-cover"
                       loading="lazy"
                     />
+                    <div className="absolute bottom-1 right-1 pointer-events-none">
+                      <DateStamp date={photo.takenAt || photo.createdAt} size="sm" />
+                    </div>
                   </div>
                 ))}
               </div>
@@ -285,6 +412,61 @@ export default function UserProfilePage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="friends" className="mt-3">
+          {!userFriends || userFriends.length === 0 ? (
+            <div className="text-center text-muted-foreground text-sm py-12">
+              No friends yet
+            </div>
+          ) : (
+            <div className="space-y-1">
+              {userFriends.map((friend) => {
+                const friendName = [friend.firstName, friend.lastName].filter(Boolean).join(" ") || "User";
+                const friendInitials = (friend.firstName?.[0] || "") + (friend.lastName?.[0] || "") || "U";
+                return (
+                  <button
+                    key={friend.id}
+                    onClick={() => navigate(`/user/${friend.id}`)}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+                    data-testid={`friend-${friend.id}`}
+                  >
+                    <Avatar className="w-10 h-10 border border-white/10">
+                      <AvatarImage src={friend.profileImageUrl || undefined} />
+                      <AvatarFallback className="bg-white/5 text-white text-xs font-medium">
+                        {friendInitials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="text-white text-sm font-normal truncate">{friendName}</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </TabsContent>
+
+        <TabsContent value="map" className="mt-3">
+          <div className="relative h-[60vh] rounded-xl overflow-hidden border border-white/10">
+            <UserMap
+              photos={photos || []}
+              myPhotos={myPhotos || []}
+              showOverlay={showOverlay}
+            />
+
+            {!isSelf && (
+              <button
+                onClick={() => setShowOverlay(!showOverlay)}
+                className={`absolute bottom-4 right-4 z-[1000] flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all shadow-lg ${
+                  showOverlay
+                    ? "bg-primary text-white"
+                    : "bg-black/70 backdrop-blur-md text-white/80 border border-white/20"
+                }`}
+              >
+                <Layers className="w-4 h-4" />
+                Overlay Photos
+              </button>
+            )}
+          </div>
         </TabsContent>
       </Tabs>
 

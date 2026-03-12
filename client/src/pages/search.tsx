@@ -167,7 +167,7 @@ export default function SearchPage() {
                       </AvatarFallback>
                     </Avatar>
                     <div className="min-w-0">
-                      <div className="text-white font-medium text-sm truncate" data-testid={`text-username-${resultUser.id}`}>{name}</div>
+                      <div className="text-white font-normal text-sm truncate" data-testid={`text-username-${resultUser.id}`}>{name}</div>
                       {isFriend && <div className="text-primary text-xs">Friend</div>}
                     </div>
                   </button>

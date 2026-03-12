@@ -2,12 +2,12 @@ import { useCallback, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { BottomNav } from "@/components/bottom-nav";
 import WelcomePage from "./welcome";
-import { Loader2, MapPin, Calendar, AlertCircle } from "lucide-react";
+import { Loader2, MapPin, AlertCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
-import { format } from "date-fns";
 import type { PhotoResponse } from "@shared/schema";
 import { PinchZoomImage } from "@/components/pinch-zoom-image";
+import { DateStamp } from "@/components/date-stamp";
 
 const PAGE_SIZE = 20;
 
@@ -33,53 +33,39 @@ function FeedCard({ photo }: { photo: PhotoResponse }) {
     .slice(0, 2);
 
   return (
-    <div className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden" data-testid={`feed-card-${photo.id}`}>
-      <div className="flex items-center gap-3 p-3">
-        <Avatar className="w-9 h-9 border border-white/20">
-          <AvatarImage src={photo.user?.profileImageUrl || undefined} />
-          <AvatarFallback className="bg-primary/20 text-primary text-xs font-bold">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="min-w-0 flex-1">
-          <div className="font-semibold text-white text-sm truncate" data-testid={`feed-username-${photo.id}`}>
-            {userName}
-          </div>
-          {photo.locationName && (
-            <div className="flex items-center gap-1 text-white/50 text-xs truncate">
-              <MapPin className="w-3 h-3 shrink-0" />
-              <span className="truncate">{photo.locationName}</span>
-            </div>
-          )}
-        </div>
-      </div>
-
+    <div className="relative w-full" data-testid={`feed-card-${photo.id}`}>
       <PinchZoomImage
         src={photo.imageUrl}
         alt={photo.locationName || "Photo"}
-        className="relative w-full bg-black/30"
-        imgClassName="w-full object-contain max-h-[600px]"
+        className="relative w-full"
+        imgClassName="w-full object-cover"
         data-testid={`feed-image-${photo.id}`}
       />
 
-      <div className="p-3 flex items-center gap-2">
-        {photo.locationName && (
-          <span className="text-white/80 text-sm font-medium truncate" data-testid={`feed-location-${photo.id}`}>
-            {photo.locationName}
-          </span>
-        )}
-        <span className="text-white/30 text-sm">·</span>
-        {photo.takenAt ? (
-          <span className="text-white/40 text-xs shrink-0 flex items-center gap-1" data-testid={`feed-date-${photo.id}`}>
-            <Calendar className="w-3 h-3" />
-            {format(new Date(photo.takenAt), "MMM d, yyyy")}
-          </span>
-        ) : photo.createdAt ? (
-          <span className="text-white/40 text-xs shrink-0 flex items-center gap-1" data-testid={`feed-date-${photo.id}`}>
-            <Calendar className="w-3 h-3" />
-            {format(new Date(photo.createdAt), "MMM d, yyyy")}
-          </span>
-        ) : null}
+      <div className="absolute top-0 left-0 right-0 bg-gradient-to-b from-black/60 via-black/30 to-transparent px-3 pt-3 pb-8 pointer-events-none">
+        <div className="flex items-center gap-2.5">
+          <Avatar className="w-9 h-9 border border-white/30">
+            <AvatarImage src={photo.user?.profileImageUrl || undefined} />
+            <AvatarFallback className="bg-white/20 text-white text-xs font-bold">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <div className="text-white text-sm truncate drop-shadow-sm" data-testid={`feed-username-${photo.id}`}>
+              {userName}
+            </div>
+            {photo.locationName && (
+              <div className="flex items-center gap-1 text-white/80 text-[11px] truncate drop-shadow-sm">
+                <MapPin className="w-2.5 h-2.5 shrink-0" />
+                <span className="truncate">{photo.locationName}</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <div className="absolute bottom-2 right-3 pointer-events-none" data-testid={`feed-date-${photo.id}`}>
+        <DateStamp date={photo.takenAt || photo.createdAt} />
       </div>
     </div>
   );
@@ -143,50 +129,46 @@ export default function Feed() {
   const allPhotos = data?.pages.flat() ?? [];
 
   return (
-    <div className="min-h-screen bg-background text-white">
-      <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/5">
-        <div className="px-4 py-3">
-          <h1 className="text-xl font-bold text-white" data-testid="feed-title">Feed</h1>
+    <div className="h-[100dvh] bg-black text-white overflow-y-auto snap-y snap-mandatory" style={{ scrollBehavior: "smooth" }} data-testid="feed-list">
+      {isLoading ? (
+        <div className="h-[100dvh] flex items-center justify-center snap-center">
+          <Loader2 className="w-8 h-8 text-primary animate-spin" />
         </div>
-      </div>
-
-      <div className="px-4 pt-3 pb-28 space-y-4" data-testid="feed-list">
-        {isLoading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 text-primary animate-spin" />
-          </div>
-        ) : isError ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/40">
-            <AlertCircle className="w-12 h-12 mb-3 opacity-40" />
-            <p className="text-lg font-medium">Something went wrong</p>
-            <button
-              onClick={() => refetch()}
-              className="mt-3 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium"
-              data-testid="button-retry-feed"
-            >
-              Try again
-            </button>
-          </div>
-        ) : allPhotos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-white/40">
-            <MapPin className="w-12 h-12 mb-3 opacity-40" />
-            <p className="text-lg font-medium">No photos yet</p>
-            <p className="text-sm mt-1">Upload your first photo to see it here!</p>
-          </div>
-        ) : (
-          <>
-            {allPhotos.map((photo) => (
-              <FeedCard key={photo.id} photo={photo} />
-            ))}
-            <div ref={sentinelRef} className="h-4" />
-            {isFetchingNextPage && (
-              <div className="flex items-center justify-center py-4">
-                <Loader2 className="w-6 h-6 text-primary animate-spin" />
-              </div>
-            )}
-          </>
-        )}
-      </div>
+      ) : isError ? (
+        <div className="h-[100dvh] flex flex-col items-center justify-center text-white/40 snap-center">
+          <AlertCircle className="w-12 h-12 mb-3 opacity-40" />
+          <p className="text-lg font-medium">Something went wrong</p>
+          <button
+            onClick={() => refetch()}
+            className="mt-3 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium"
+            data-testid="button-retry-feed"
+          >
+            Try again
+          </button>
+        </div>
+      ) : allPhotos.length === 0 ? (
+        <div className="h-[100dvh] flex flex-col items-center justify-center text-white/40 snap-center">
+          <MapPin className="w-12 h-12 mb-3 opacity-40" />
+          <p className="text-lg font-medium">No photos yet</p>
+          <p className="text-sm mt-1">Upload your first photo to see it here!</p>
+        </div>
+      ) : (
+        <>
+          {allPhotos.map((photo) => (
+            <div key={photo.id} className="snap-center py-0.5">
+              <FeedCard photo={photo} />
+            </div>
+          ))}
+          <div ref={sentinelRef} className="h-4" />
+          {isFetchingNextPage && (
+            <div className="flex items-center justify-center py-4 snap-center">
+              <Loader2 className="w-6 h-6 text-primary animate-spin" />
+            </div>
+          )}
+          {/* Spacer so last photo can snap to center */}
+          <div className="h-24" />
+        </>
+      )}
 
       <BottomNav onPhotoUploaded={handlePhotoUploaded} />
     </div>

@@ -3,14 +3,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { usePhotos } from "@/hooks/use-photos";
 import { BottomNav } from "@/components/bottom-nav";
 import WelcomePage from "./welcome";
-import { Loader2, MapPin, Grid3X3, Globe, LogOut, Camera, ArrowLeft } from "lucide-react";
+import { Loader2, MapPin, Grid3X3, Globe, LogOut, Camera, ArrowLeft, Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { SortablePhotoGrid } from "@/components/sortable-photo-grid";
+import { DateStamp } from "@/components/date-stamp";
+import { ProfileCropModal } from "@/components/profile-crop-modal";
 import type { Photo } from "@shared/schema";
 
 function resizeImage(file: File, maxSize: number, quality: number): Promise<string> {
@@ -59,15 +62,34 @@ interface CountryGroup {
   coverPhoto: Photo & { user?: any; collection?: any };
 }
 
+interface FriendProfile {
+  id: string;
+  firstName: string | null;
+  lastName: string | null;
+  profileImageUrl: string | null;
+}
+
 export default function Profile() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const [, navigate] = useLocation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   
   const { data: photos, isLoading: isLoadingPhotos } = usePhotos({ userId: user?.id });
+
+  const { data: myFriends } = useQuery<FriendProfile[]>({
+    queryKey: ["/api/users", user?.id, "friends"],
+    queryFn: async () => {
+      const res = await fetch(`/api/users/${user?.id}/friends`);
+      if (!res.ok) throw new Error("Failed to load friends");
+      return res.json();
+    },
+    enabled: !!user?.id,
+  });
 
   const countryGroups = useMemo<CountryGroup[]>(() => {
     if (!photos || photos.length === 0) return [];
@@ -110,15 +132,26 @@ export default function Profile() {
       toast({ title: "Please select an image file", variant: "destructive" });
       return;
     }
+    try {
+      // Load a preview-sized version for the crop UI
+      const preview = await resizeImage(file, 1200, 0.9);
+      setCropImageUrl(preview);
+    } catch {
+      toast({ title: "Failed to load image", variant: "destructive" });
+    } finally {
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  const handleCropConfirm = async (croppedDataUrl: string) => {
     setIsUploading(true);
     try {
-      const resized = await resizeImage(file, 400, 0.85);
-      await uploadMutation.mutateAsync(resized);
+      await uploadMutation.mutateAsync(croppedDataUrl);
     } catch {
-      toast({ title: "Failed to process image", variant: "destructive" });
+      toast({ title: "Failed to update profile photo", variant: "destructive" });
     } finally {
       setIsUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      setCropImageUrl(null);
     }
   };
 
@@ -140,7 +173,7 @@ export default function Profile() {
         <div className="flex items-center justify-between pt-3">
           <div className="flex items-center gap-3">
             <div className="relative shrink-0">
-              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-full" />
+              <div className="absolute inset-0 bg-primary/20 blur-xl rounded-lg" />
               <input
                 ref={fileInputRef}
                 type="file"
@@ -151,7 +184,7 @@ export default function Profile() {
               />
               <button
                 onClick={handleAvatarClick}
-                className="relative z-10 group cursor-pointer rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                className="relative z-10 group cursor-pointer rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 data-testid="button-change-avatar"
                 disabled={isUploading}
               >
@@ -161,7 +194,7 @@ export default function Profile() {
                     {user.firstName?.[0] || user.username?.[0] || 'U'}
                   </AvatarFallback>
                 </Avatar>
-                <div className="absolute inset-0 bg-black/40 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                <div className="absolute inset-0 bg-black/40 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                   {isUploading ? (
                     <Loader2 className="w-5 h-5 text-white animate-spin" />
                   ) : (
@@ -170,7 +203,7 @@ export default function Profile() {
                 </div>
               </button>
             </div>
-            <h2 className="text-lg font-bold font-display tracking-tight" data-testid="text-profile-name">
+            <h2 className="text-lg font-normal tracking-tight" data-testid="text-profile-name">
               {user.firstName} {user.lastName}
             </h2>
           </div>
@@ -183,11 +216,14 @@ export default function Profile() {
       <div className="px-4">
         <Tabs defaultValue="photos" className="w-full">
           <TabsList className="w-full bg-white/5 border border-white/10 p-1 rounded-xl h-12 mb-6">
-            <TabsTrigger value="photos" className="w-1/2 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
-              <Grid3X3 className="w-4 h-4 mr-2" /> Photos
+            <TabsTrigger value="photos" className="flex-1 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all">
+              <Grid3X3 className="w-3.5 h-3.5 mr-1" /> Photos
             </TabsTrigger>
-            <TabsTrigger value="countries" className="w-1/2 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-countries">
-              <Globe className="w-4 h-4 mr-2" /> Countries
+            <TabsTrigger value="countries" className="flex-1 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-countries">
+              <Globe className="w-3.5 h-3.5 mr-1" /> Countries
+            </TabsTrigger>
+            <TabsTrigger value="friends" className="flex-1 rounded-lg text-white/60 data-[state=active]:bg-white/10 data-[state=active]:text-white data-[state=active]:shadow-md transition-all" data-testid="tab-friends">
+              <Users className="w-3.5 h-3.5 mr-1" /> Friends
             </TabsTrigger>
           </TabsList>
 
@@ -244,55 +280,32 @@ export default function Profile() {
                             <span className="truncate">{photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}</span>
                           </div>
                         </div>
+                        <div className="absolute bottom-1 right-1 pointer-events-none">
+                          <DateStamp date={photo.takenAt || photo.createdAt} size="sm" />
+                        </div>
                       </div>
                     ))}
                 </div>
               </div>
             ) : countryGroups.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 {countryGroups.map((group) => (
                   <button
                     key={group.country}
                     onClick={() => setSelectedCountry(group.country)}
-                    className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden hover:bg-white/10 transition-colors cursor-pointer text-left w-full"
+                    className="relative aspect-[4/3] rounded-xl overflow-hidden group"
                     data-testid={`button-country-${group.country}`}
                   >
-                    <div className="relative h-32">
-                      <img
-                        src={group.coverPhoto.imageUrl}
-                        alt={group.country}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                      <div className="absolute bottom-0 left-0 right-0 p-4">
-                        <h3 className="font-semibold text-lg text-white flex items-center gap-2">
-                          <Globe className="w-4 h-4 shrink-0" />
-                          {group.country}
-                        </h3>
-                        <p className="text-sm text-white/70 mt-0.5">
-                          {group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}
-                        </p>
-                      </div>
-                    </div>
-                    <div className="p-3">
-                      <div className="flex -space-x-2 overflow-hidden">
-                        {group.photos.slice(0, 5).map((p, i) => (
-                          <img
-                            key={p.id}
-                            className="inline-block h-8 w-8 rounded-full ring-2 ring-background object-cover"
-                            src={p.imageUrl}
-                            alt=""
-                            style={{ zIndex: 5 - i }}
-                            loading="lazy"
-                          />
-                        ))}
-                        {group.photos.length > 5 && (
-                          <div className="inline-flex h-8 w-8 items-center justify-center rounded-full ring-2 ring-background bg-white/10 text-xs font-medium z-0">
-                            +{group.photos.length - 5}
-                          </div>
-                        )}
-                      </div>
+                    <img
+                      src={group.coverPhoto.imageUrl}
+                      alt={group.country}
+                      className="absolute inset-0 w-full h-full object-cover"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    <div className="absolute bottom-2 left-2 right-2">
+                      <p className="text-white font-medium text-sm truncate">{group.country}</p>
+                      <p className="text-white/60 text-xs">{group.photos.length} photo{group.photos.length !== 1 ? "s" : ""}</p>
                     </div>
                   </button>
                 ))}
@@ -309,10 +322,56 @@ export default function Profile() {
               </div>
             )}
           </TabsContent>
+
+          <TabsContent value="friends" className="outline-none">
+            {!myFriends || myFriends.length === 0 ? (
+              <div className="text-center py-20 px-4">
+                <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Users className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No Friends Yet</h3>
+                <p className="text-muted-foreground text-sm max-w-[200px] mx-auto">
+                  Search for users and add them as friends.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {myFriends.map((friend) => {
+                  const friendName = [friend.firstName, friend.lastName].filter(Boolean).join(" ") || "User";
+                  const friendInitials = (friend.firstName?.[0] || "") + (friend.lastName?.[0] || "") || "U";
+                  return (
+                    <button
+                      key={friend.id}
+                      onClick={() => navigate(`/user/${friend.id}`)}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl hover:bg-white/5 active:bg-white/10 transition-colors text-left"
+                      data-testid={`friend-${friend.id}`}
+                    >
+                      <Avatar className="w-10 h-10 border border-white/10">
+                        <AvatarImage src={friend.profileImageUrl || undefined} />
+                        <AvatarFallback className="bg-white/5 text-white text-xs font-medium">
+                          {friendInitials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="text-white text-sm font-normal truncate">{friendName}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
 
       <BottomNav />
+
+      {cropImageUrl && (
+        <ProfileCropModal
+          imageUrl={cropImageUrl}
+          onConfirm={handleCropConfirm}
+          onCancel={() => setCropImageUrl(null)}
+          isSaving={isUploading}
+        />
+      )}
     </div>
   );
 }

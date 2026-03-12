@@ -33,7 +33,9 @@ export interface IStorage {
   getFriendsFeedPhotos(userId: string, limit: number, offset: number): Promise<(Photo & { user?: any, collection?: any })[]>;
 
   // Map markers (lightweight, no full imageUrl)
+  getMyMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]>;
   getFriendsMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]>;
+  getUserFriends(userId: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null }[]>;
 
   // Thumbnail backfill
   backfillThumbnails(): Promise<number>;
@@ -267,6 +269,21 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getMyMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]> {
+    const results = await db.select({
+      id: photos.id,
+      userId: photos.userId,
+      thumbnailUrl: photos.thumbnailUrl,
+      latitude: photos.latitude,
+      longitude: photos.longitude,
+      locationName: photos.locationName,
+      country: photos.country,
+      takenAt: photos.takenAt,
+    }).from(photos)
+      .where(eq(photos.userId, userId));
+    return results;
+  }
+
   async getFriendsMapMarkers(userId: string): Promise<{ id: number; userId: string; thumbnailUrl: string | null; latitude: number; longitude: number; locationName: string | null; country: string | null; takenAt: Date | null }[]> {
     const friendIds = await this.getFriendIds(userId);
     const allIds = [userId, ...friendIds];
@@ -282,6 +299,18 @@ export class DatabaseStorage implements IStorage {
       takenAt: photos.takenAt,
     }).from(photos)
       .where(inArray(photos.userId, allIds));
+    return results;
+  }
+
+  async getUserFriends(userId: string): Promise<{ id: string; firstName: string | null; lastName: string | null; profileImageUrl: string | null }[]> {
+    const friendIds = await this.getFriendIds(userId);
+    if (friendIds.length === 0) return [];
+    const results = await db.select({
+      id: users.id,
+      firstName: users.firstName,
+      lastName: users.lastName,
+      profileImageUrl: users.profileImageUrl,
+    }).from(users).where(inArray(users.id, friendIds));
     return results;
   }
 

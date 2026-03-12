@@ -25,6 +25,7 @@ import { useDeletePhoto } from "@/hooks/use-photos";
 import { ProfilePhotoViewer } from "@/components/profile-photo-viewer";
 import { api } from "@shared/routes";
 import type { Photo } from "@shared/schema";
+import { DateStamp } from "@/components/date-stamp";
 
 type PhotoItem = Photo & { user?: any; collection?: any };
 
@@ -57,7 +58,7 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
   };
 
   const touchStartTime = useRef(0);
-  const TAP_DURATION = 200;
+  const TAP_DURATION = 400;
 
   const handleTouchStartLocal = useCallback((e: React.TouchEvent) => {
     touchMovedRef.current = false;
@@ -116,14 +117,19 @@ function SortablePhoto({ photo, isEditMode, isDragging, onLongPressStart, onLong
         draggable={false}
       />
       {!isEditMode && (
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
-          <div className="text-[10px] text-white flex items-center truncate">
-            <MapPin className="w-3 h-3 mr-1 shrink-0" />
-            <span className="truncate">
-              {photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}
-            </span>
+        <>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex items-end p-2">
+            <div className="text-[10px] text-white flex items-center truncate">
+              <MapPin className="w-3 h-3 mr-1 shrink-0" />
+              <span className="truncate">
+                {photo.locationName || `${photo.latitude.toFixed(2)}, ${photo.longitude.toFixed(2)}`}
+              </span>
+            </div>
           </div>
-        </div>
+          <div className="absolute bottom-1 right-1 pointer-events-none">
+            <DateStamp date={photo.takenAt || photo.createdAt} size="sm" />
+          </div>
+        </>
       )}
       {isEditMode && (
         <>

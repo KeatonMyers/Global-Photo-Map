@@ -1,67 +1,130 @@
-import { Globe2, MapPin, Camera, Sparkles } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function WelcomePage() {
-  const handleLogin = () => {
-    window.location.href = "/api/login";
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const queryClient = useQueryClient();
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+
+    try {
+      const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+      const body = isLogin
+        ? { email, password }
+        : { email, password, firstName, lastName };
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+        credentials: "include",
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.message || "Something went wrong");
+        return;
+      }
+
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-[100dvh] flex flex-col items-center justify-center bg-black text-white relative overflow-hidden px-6">
-      {/* Background aesthetic blobs */}
-      <div className="absolute top-[-10%] left-[-10%] w-[50vw] h-[50vw] bg-primary/30 rounded-full blur-[120px]" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-blue-600/20 rounded-full blur-[100px]" />
-      
-      <div className="z-10 w-full max-w-md flex flex-col items-center text-center">
-        <div className="relative mb-8 group">
-          <div className="absolute inset-0 bg-primary/40 blur-2xl rounded-full group-hover:bg-primary/60 transition-colors duration-500" />
-          <div className="w-24 h-24 bg-gradient-to-tr from-primary to-blue-400 rounded-3xl shadow-2xl flex items-center justify-center relative z-10 border border-white/20">
-            <Globe2 className="w-12 h-12 text-white" />
-          </div>
-        </div>
+    <div className="min-h-[100dvh] flex flex-col items-center justify-end bg-black text-white relative overflow-hidden">
+      {/* Full-screen background image */}
+      <img
+        src="/atlas-bg.jpg"
+        alt=""
+        className="absolute inset-0 w-full h-full object-cover"
+      />
+      {/* Dark overlay for legibility */}
+      <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/90" />
 
-        <h1 className="text-4xl md:text-5xl font-display font-bold mb-4 tracking-tight">
-          Your World,<br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-primary">
-            Mapped.
-          </span>
+      <div className="z-10 w-full max-w-md flex flex-col items-center text-center px-6 pb-10">
+        {/* Title area — pushed toward upper-middle via spacer */}
+        <div className="mb-auto" />
+
+        <h1 className="text-5xl font-bold tracking-tight mb-1" style={{ fontFamily: "-apple-system, 'SF Pro Display', system-ui, sans-serif" }}>
+          AtlasDuo
         </h1>
-        
-        <p className="text-lg text-muted-foreground mb-12 max-w-sm leading-relaxed">
-          Upload your photos and watch them populate on a beautiful, interactive global map. Share your journey and discover places through the lenses of others.
+        <p className="text-white/60 text-sm mb-8 tracking-wide">
+          Your World, Mapped.
         </p>
 
-        <div className="space-y-6 w-full mb-12 text-left">
-          <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 glass-panel">
-            <div className="bg-primary/20 p-3 rounded-xl">
-              <MapPin className="w-6 h-6 text-primary" />
+        <form onSubmit={handleSubmit} className="w-full space-y-3">
+          {!isLogin && (
+            <div className="flex gap-3">
+              <Input
+                type="text"
+                placeholder="First name"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                className="bg-black/40 backdrop-blur-md border-white/20 text-white placeholder:text-white/40"
+              />
+              <Input
+                type="text"
+                placeholder="Last name"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                className="bg-black/40 backdrop-blur-md border-white/20 text-white placeholder:text-white/40"
+              />
             </div>
-            <div>
-              <h3 className="font-semibold text-white">Automatic Placement</h3>
-              <p className="text-sm text-white/60">GPS data pins photos instantly</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4 bg-white/5 p-4 rounded-2xl border border-white/10 glass-panel">
-            <div className="bg-blue-500/20 p-3 rounded-xl">
-              <Camera className="w-6 h-6 text-blue-400" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-white">Trips & Collections</h3>
-              <p className="text-sm text-white/60">Group your memories naturally</p>
-            </div>
-          </div>
-        </div>
+          )}
+          <Input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            className="bg-black/40 backdrop-blur-md border-white/20 text-white placeholder:text-white/40"
+          />
+          <Input
+            type="password"
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            minLength={6}
+            className="bg-black/40 backdrop-blur-md border-white/20 text-white placeholder:text-white/40"
+          />
 
-        <Button 
-          size="lg" 
-          onClick={handleLogin}
-          className="w-full py-7 text-lg rounded-2xl bg-white text-black hover:bg-gray-100 shadow-[0_0_40px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_rgba(255,255,255,0.4)] transition-all hover:scale-[1.02] active:scale-95"
+          {error && (
+            <p className="text-red-400 text-sm">{error}</p>
+          )}
+
+          <Button
+            type="submit"
+            size="lg"
+            disabled={loading}
+            className="w-full py-6 text-lg rounded-2xl bg-white text-black hover:bg-gray-100 shadow-[0_0_40px_rgba(255,255,255,0.2)] transition-all hover:scale-[1.02] active:scale-95"
+          >
+            {loading ? "Please wait..." : isLogin ? "Log In" : "Create Account"}
+          </Button>
+        </form>
+
+        <button
+          onClick={() => { setIsLogin(!isLogin); setError(""); }}
+          className="mt-4 text-sm text-white/50 hover:text-white/80 transition-colors"
         >
-          <Sparkles className="w-5 h-5 mr-2" />
-          Continue with Replit
-        </Button>
-        <p className="mt-4 text-xs text-white/40">Secure, fast login via Replit Auth</p>
+          {isLogin ? "Don't have an account? Sign up" : "Already have an account? Log in"}
+        </button>
       </div>
     </div>
   );

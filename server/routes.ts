@@ -27,7 +27,7 @@ export async function registerRoutes(
   app.post(api.photos.create.path, isAuthenticated, async (req: any, res) => {
     try {
       const input = api.photos.create.input.parse(req.body);
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const photo = await storage.createPhoto(userId, input);
       
       const fullPhoto = await storage.getPhoto(photo.id);
@@ -48,7 +48,7 @@ export async function registerRoutes(
   });
 
   app.delete(api.photos.delete.path, isAuthenticated, async (req: any, res) => {
-    const userId = req.user.claims.sub;
+    const userId = req.userId;
     const success = await storage.deletePhoto(Number(req.params.id), userId);
     if (!success) return res.status(404).json({ message: "Photo not found or unauthorized" });
     res.status(204).end();
@@ -67,7 +67,7 @@ export async function registerRoutes(
   app.post(api.collections.create.path, isAuthenticated, async (req: any, res) => {
     try {
       const input = api.collections.create.input.parse(req.body);
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const collection = await storage.createCollection(userId, input);
       res.status(201).json(collection);
     } catch (err) {
@@ -88,7 +88,7 @@ export async function registerRoutes(
     try {
       const limit = Math.min(Number(req.query.limit) || 20, 50);
       const offset = Number(req.query.offset) || 0;
-      const userId = req.user?.claims?.sub;
+      const userId = (req.session as any)?.userId;
       if (userId) {
         const feedPhotos = await storage.getFriendsFeedPhotos(userId, limit, offset);
         res.json(feedPhotos);
@@ -104,7 +104,7 @@ export async function registerRoutes(
 
   app.get("/api/friends/photos", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const friendsPhotos = await storage.getFriendsPhotos(userId);
       res.json(friendsPhotos);
     } catch (err) {
@@ -113,9 +113,20 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/my/map-markers", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.userId;
+      const markers = await storage.getMyMapMarkers(userId);
+      res.json(markers);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch map markers" });
+    }
+  });
+
   app.get("/api/friends/map-markers", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const markers = await storage.getFriendsMapMarkers(userId);
       res.json(markers);
     } catch (err) {
@@ -126,7 +137,7 @@ export async function registerRoutes(
 
   app.post("/api/friends/:friendId", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { friendId } = req.params;
       if (userId === friendId) return res.status(400).json({ message: "Cannot add yourself" });
       await storage.addFriend(userId, friendId);
@@ -139,7 +150,7 @@ export async function registerRoutes(
 
   app.delete("/api/friends/:friendId", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const { friendId } = req.params;
       await storage.removeFriend(userId, friendId);
       res.json({ success: true });
@@ -149,9 +160,19 @@ export async function registerRoutes(
     }
   });
 
+  app.get("/api/users/:id/friends", async (req, res) => {
+    try {
+      const friends = await storage.getUserFriends(req.params.id);
+      res.json(friends);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ message: "Failed to fetch user friends" });
+    }
+  });
+
   app.get("/api/friends", isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       const friendIds = await storage.getFriendIds(userId);
       res.json(friendIds);
     } catch (err) {
@@ -166,7 +187,7 @@ export async function registerRoutes(
         photoIds: z.array(z.number()),
       });
       const { photoIds } = schema.parse(req.body);
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       await storage.reorderPhotos(userId, photoIds);
       res.json({ success: true });
     } catch (err) {
@@ -220,7 +241,7 @@ export async function registerRoutes(
       if (sizeBytes > maxSizeBytes) {
         return res.status(400).json({ message: "Image too large. Maximum size is 500KB." });
       }
-      const userId = req.user.claims.sub;
+      const userId = req.userId;
       await storage.updateUserProfileImage(userId, imageUrl);
       res.json({ success: true });
     } catch (err) {

@@ -74,6 +74,85 @@ function normalizeCountryName(name: string): string {
   return COUNTRY_NAME_MAP[trimmed] || trimmed;
 }
 
+const CONTINENT_COLORS: Record<string, { fill: string; border: string }> = {
+  northAmerica: { fill: "rgba(20, 50, 120, 0.55)", border: "rgba(30, 64, 130, 0.6)" },
+  southAmerica: { fill: "rgba(180, 130, 20, 0.55)", border: "rgba(200, 150, 30, 0.6)" },
+  europe: { fill: "rgba(110, 20, 30, 0.55)", border: "rgba(130, 30, 40, 0.6)" },
+  africa: { fill: "rgba(20, 90, 40, 0.55)", border: "rgba(30, 110, 50, 0.6)" },
+  asia: { fill: "rgba(200, 80, 20, 0.55)", border: "rgba(220, 100, 30, 0.6)" },
+  oceania: { fill: "rgba(200, 180, 30, 0.55)", border: "rgba(220, 200, 40, 0.6)" },
+  polar: { fill: "rgba(20, 140, 130, 0.55)", border: "rgba(30, 160, 150, 0.6)" },
+};
+
+const COUNTRY_CONTINENT: Record<string, string> = {
+  // North America
+  "United States of America": "northAmerica", "Canada": "northAmerica", "Mexico": "northAmerica",
+  "Guatemala": "northAmerica", "Belize": "northAmerica", "Honduras": "northAmerica",
+  "El Salvador": "northAmerica", "Nicaragua": "northAmerica", "Costa Rica": "northAmerica",
+  "Panama": "northAmerica", "Cuba": "northAmerica", "Jamaica": "northAmerica",
+  "Haiti": "northAmerica", "Dominican Republic": "northAmerica", "Puerto Rico": "northAmerica",
+  "The Bahamas": "northAmerica", "Trinidad and Tobago": "northAmerica", "Bermuda": "northAmerica",
+  // South America
+  "Brazil": "southAmerica", "Argentina": "southAmerica", "Chile": "southAmerica",
+  "Colombia": "southAmerica", "Peru": "southAmerica", "Venezuela": "southAmerica",
+  "Ecuador": "southAmerica", "Bolivia": "southAmerica", "Paraguay": "southAmerica",
+  "Uruguay": "southAmerica", "Guyana": "southAmerica", "Suriname": "southAmerica",
+  "French Guiana": "southAmerica", "Falkland Islands": "southAmerica",
+  // Europe
+  "United Kingdom": "europe", "France": "europe", "Germany": "europe", "Italy": "europe",
+  "Spain": "europe", "Portugal": "europe", "Netherlands": "europe", "Belgium": "europe",
+  "Luxembourg": "europe", "Switzerland": "europe", "Austria": "europe", "Ireland": "europe",
+  "Iceland": "europe", "Norway": "europe", "Sweden": "europe", "Finland": "europe",
+  "Denmark": "europe", "Poland": "europe", "Czech Republic": "europe", "Slovakia": "europe",
+  "Hungary": "europe", "Romania": "europe", "Bulgaria": "europe", "Greece": "europe",
+  "Croatia": "europe", "Slovenia": "europe", "Bosnia and Herzegovina": "europe",
+  "Republic of Serbia": "europe", "Montenegro": "europe", "Kosovo": "europe",
+  "Macedonia": "europe", "Albania": "europe", "Estonia": "europe", "Latvia": "europe",
+  "Lithuania": "europe", "Belarus": "europe", "Ukraine": "europe", "Moldova": "europe",
+  "Malta": "europe", "Cyprus": "europe", "Northern Cyprus": "europe",
+  // Africa
+  "Egypt": "africa", "Libya": "africa", "Tunisia": "africa", "Algeria": "africa",
+  "Morocco": "africa", "Western Sahara": "africa", "Mauritania": "africa", "Mali": "africa",
+  "Niger": "africa", "Chad": "africa", "Sudan": "africa", "South Sudan": "africa",
+  "Ethiopia": "africa", "Eritrea": "africa", "Djibouti": "africa", "Somalia": "africa",
+  "Somaliland": "africa", "Kenya": "africa", "Uganda": "africa", "Rwanda": "africa",
+  "Burundi": "africa", "United Republic of Tanzania": "africa", "Mozambique": "africa",
+  "Madagascar": "africa", "South Africa": "africa", "Namibia": "africa", "Botswana": "africa",
+  "Zimbabwe": "africa", "Zambia": "africa", "Malawi": "africa", "Angola": "africa",
+  "Democratic Republic of the Congo": "africa", "Republic of the Congo": "africa",
+  "Gabon": "africa", "Equatorial Guinea": "africa", "Cameroon": "africa",
+  "Central African Republic": "africa", "Nigeria": "africa", "Benin": "africa",
+  "Togo": "africa", "Ghana": "africa", "Ivory Coast": "africa", "Burkina Faso": "africa",
+  "Liberia": "africa", "Sierra Leone": "africa", "Guinea": "africa", "Guinea Bissau": "africa",
+  "Gambia": "africa", "Senegal": "africa", "Lesotho": "africa", "Swaziland": "africa",
+  // Asia
+  "Russia": "asia", "China": "asia", "Japan": "asia", "South Korea": "asia",
+  "North Korea": "asia", "Mongolia": "asia", "India": "asia", "Pakistan": "asia",
+  "Bangladesh": "asia", "Sri Lanka": "asia", "Nepal": "asia", "Bhutan": "asia",
+  "Myanmar": "asia", "Thailand": "asia", "Vietnam": "asia", "Laos": "asia",
+  "Cambodia": "asia", "Malaysia": "asia", "Indonesia": "asia", "Philippines": "asia",
+  "Taiwan": "asia", "Brunei": "asia", "East Timor": "asia", "Kazakhstan": "asia",
+  "Uzbekistan": "asia", "Turkmenistan": "asia", "Tajikistan": "asia", "Kyrgyzstan": "asia",
+  "Afghanistan": "asia", "Iran": "asia", "Iraq": "asia", "Syria": "asia",
+  "Turkey": "asia", "Georgia": "asia", "Armenia": "asia", "Azerbaijan": "asia",
+  "Lebanon": "asia", "Israel": "asia", "Jordan": "asia", "Saudi Arabia": "asia",
+  "Yemen": "asia", "Oman": "asia", "United Arab Emirates": "asia", "Qatar": "asia",
+  "Kuwait": "asia", "West Bank": "asia", "Papua New Guinea": "asia",
+  // Oceania (Australia & New Zealand)
+  "Australia": "oceania", "New Zealand": "oceania", "Fiji": "oceania",
+  "Solomon Islands": "oceania", "Vanuatu": "oceania", "New Caledonia": "oceania",
+  // Polar (Greenland & Antarctica)
+  "Greenland": "polar", "Antarctica": "polar",
+  "French Southern and Antarctic Lands": "polar",
+};
+
+function getCountryColor(countryName: string): { fill: string; border: string } | null {
+  const normalized = normalizeCountryName(countryName);
+  const continent = COUNTRY_CONTINENT[normalized];
+  if (!continent) return CONTINENT_COLORS.europe; // fallback
+  return CONTINENT_COLORS[continent];
+}
+
 function HighlightedCountries({ visitedCountries }: { visitedCountries: Set<string> }) {
   const [geoData, setGeoData] = useState<any>(null);
 
@@ -83,16 +162,6 @@ function HighlightedCountries({ visitedCountries }: { visitedCountries: Set<stri
       .then(setGeoData)
       .catch(() => {});
   }, []);
-
-  const highlightStyle = useMemo(
-    () => ({
-      color: "rgba(255, 255, 255, 0.5)",
-      weight: 1.5,
-      fillColor: "rgba(200, 210, 220, 0.15)",
-      fillOpacity: 1,
-    }),
-    []
-  );
 
   const defaultStyle = useMemo(
     () => ({
@@ -108,12 +177,20 @@ function HighlightedCountries({ visitedCountries }: { visitedCountries: Set<stri
     return (feature: any, layer: any) => {
       const name = feature?.properties?.name;
       if (name && visitedCountries.has(normalizeCountryName(name))) {
-        layer.setStyle(highlightStyle);
+        const colors = getCountryColor(name);
+        if (colors) {
+          layer.setStyle({
+            color: colors.border,
+            weight: 1.5,
+            fillColor: colors.fill,
+            fillOpacity: 1,
+          });
+        }
       } else {
         layer.setStyle(defaultStyle);
       }
     };
-  }, [visitedCountries, highlightStyle, defaultStyle]);
+  }, [visitedCountries, defaultStyle]);
 
   if (!geoData || visitedCountries.size === 0) return null;
 
@@ -313,9 +390,9 @@ export function PhotoMap({ flyToCoords }: PhotoMapProps) {
   const [, setBounds] = useState<string>("");
   const { user } = useAuth();
   const { data: markers } = useQuery<MapMarker[]>({
-    queryKey: ["/api/friends/map-markers"],
+    queryKey: ["/api/my/map-markers"],
     queryFn: async () => {
-      const res = await fetch("/api/friends/map-markers", { credentials: "include" });
+      const res = await fetch("/api/my/map-markers", { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch map markers");
       return res.json();
     },
